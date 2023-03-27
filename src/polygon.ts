@@ -71,7 +71,7 @@ export class Polygon {
     }
 
     update() {
-        this.ctx.strokeStyle = "rgba(0,0,0,0)"
+        this.ctx.strokeStyle = "white"
         this.draw()
     }
 }

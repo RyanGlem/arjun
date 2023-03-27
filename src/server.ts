@@ -7,18 +7,6 @@ const server = http2.createSecureServer({
 });
 
 server.on("error", (err) => console.error(err));
-server.on("request", (request, response) => {
-  request.setEncoding("utf8");
-  // This is the GET request from the client. We handle this connection request on the request listener for the server
-  if (request.url == "/esbuild") {
-    // You can write responses in the get request field so we can handle the response appropriately
-    response.writeHead(200, {
-      "content-type": "text/event-stream",
-      "cache-control": "no-cache",
-    });
-    response.write("event: change\n");
-  }
-});
 
 server.on("stream", (stream, headers) => {
   const path = headers[":path"];
@@ -42,7 +30,7 @@ server.on("stream", (stream, headers) => {
       });
       break;
     case "/output.css":
-      fs.readFile("src/output.css", (err, data) => {
+      fs.readFile("src/styles/output.css", (err, data) => {
         if (err) throw err;
         stream.respond({
           status: 200,

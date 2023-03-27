@@ -2,11 +2,9 @@ import { Circle } from "./circle";
 import { Line } from "./line";
 import { Polygon } from "./polygon";
 import { Ray, Point } from "./ray";
-import { distance, checkLineCollision } from "./linear_operations";
-import { Particles } from "./particles";
-import { Reflectors } from "./reflectors";
-import { LightRay } from "./directional_light";
-import { PointerLightRay } from "./pointer_light";
+import { PointLight } from "./lights/point_light";
+import { DirectLight } from "./lights/directional_light";
+import { TrackLight } from "./lights/tracking_light";
 
 const canvas: HTMLCanvasElement = document.getElementById(
   "container"
@@ -57,16 +55,12 @@ Collections.push(...polygons);
 Collections.push(circle);
 
 let circlePointer: Point = { x: circle.x, y: circle.y };
-const particles: Particles[] = [];
 
-for (let i = 0; i < 12; i++) {
-  particles.push(new Particles(ctx, circlePointer));
-}
-let pLight = new PointerLightRay (ctx, {x: 500, y: 450})
-let dLight = new PointerLightRay(ctx, circlePointer);
+// Lights
+const pointLight = new PointLight (ctx, polygons, circlePointer);
+const directLight = new DirectLight (ctx, polygons, circlePointer, 0, 30)
+const trackLight = new TrackLight (ctx, polygons, circlePointer, 0, 30);
 let mousePointer: Point = { x: 0, y: 0 };
-//const trace = new Line(ctx, circlePointer, mousePointer, "red");
-//const ray = new Ray(circlePointer, mousePointer);
 //const reflectors = new Reflectors(ctx, ray);
 
 const checkHit = (scanRay: Ray) => {
@@ -82,6 +76,7 @@ const drag = (event: MouseEvent) => {
     { x: event.offsetX, y: event.offsetY },
     { x: event.offsetX + 10, y: event.offsetY }
   );
+  
   let initialPoint = { x: event.offsetX, y: event.offsetY };
   let initialPosition: Point;
   let initialCirclePosition: Point;
@@ -103,7 +98,7 @@ const drag = (event: MouseEvent) => {
       x: initialPoint.x - initialEntity.x,
       y: initialPoint.y - initialEntity.y,
     };
-    for (let ray of dLight.initialRays) {
+    for (let ray of trackLight.rays) {
       initialPosition = {
         x: initialPoint.x - ray.p2.x,
         y: initialPoint.y - ray.p2.y,
@@ -129,7 +124,7 @@ const drag = (event: MouseEvent) => {
       for (let position of initialPositions) {
         translate.push({ x: offsetX - position.x, y: offsetY - position.y });
       }
-      dLight.updatePosition({x:posX, y:posY}, translate);
+      trackLight.updatePosition({x:posX, y:posY}, translate);
     }
   };
 
@@ -141,29 +136,10 @@ const drag = (event: MouseEvent) => {
 };
 
 const draw = () => {
-  //trace.update();
-  dLight.update();
-  pLight.update()
   circle.update();
   for (let polygon of polygons) {
     polygon.update();
   }
-};
-
-const findClosest = (walls: Line[], ray: Ray) => {
-  let closest = null;
-  let max = Number.MAX_VALUE;
-  for (let wall of walls) {
-    let hit = checkLineCollision(ray, wall);
-    if (hit) {
-      const dist = distance(ray.p1, hit);
-      if (dist < max) {
-        max = dist;
-        closest = hit;
-      }
-    }
-  }
-  return closest;
 };
 
 let frameTime = 0;
@@ -179,40 +155,15 @@ const displayFPS = () => {
   ctx.fillText(frames, canvas.width - 140, 40);
 };
 
-const update = (timestamp: DOMHighResTimeStamp) => {
-  /*if (start === undefined) start = timestamp;
-  const elapsed = timestamp - start;
-  let time = elapsed * 0.001;*/
+const update = () => {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  dLight.lookAt(circlePointer, {x:0, y:0})
-  dLight.calcIntersects(polygons, circlePointer);
-  dLight.lookAt({x: 80, y: 140}, {x:500, y:300})
-  dLight.calcIntersects(polygons, {x:80, y :140});
   displayFPS();
+  trackLight.lookAt(polygons, circlePointer, mousePointer)
+  //pointLight.updateRays(polygons, circlePointer)
 
-  /*particles[0].calcIntersects(
-    polygons,
-    { x: circlePointer.x, y: circlePointer.y },
-    20,
-    "rgba(232,232,254,0.5)"
-  );
-  
-  particles[1].calcIntersects(
-    polygons,
-    { x: circlePointer.x + 9.5, y: circlePointer.y + 9 },
-    20,
-    "rgba(232,232,254,0.43)"
-  );
-  particles[2].calcIntersects(
-    polygons,
-    { x: circlePointer.x - 9, y: circlePointer.y - 9.5 },
-    15,
-    "rgba(232,232,254,0.33)"
-  );*/
   draw();
-
   requestAnimationFrame(update);
 };
 
@@ -221,8 +172,6 @@ canvas.addEventListener("mousemove", (event: MouseEvent) => {
   let mouseY = event.offsetY;
   circlePointer = { x: circle.x, y: circle.y };
   mousePointer = { x: mouseX, y: mouseY };
-  //ray.p1 = circlePointer;
-  //ray.p2 = mousePointer;
 });
 
 canvas.addEventListener("mousedown", drag);

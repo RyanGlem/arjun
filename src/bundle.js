@@ -201,37 +201,25 @@
       this.vertices = points;
     }
     update() {
-      this.ctx.strokeStyle = "rgba(0,0,0,0)";
+      this.ctx.strokeStyle = "white";
       this.draw();
     }
   };
 
-  // src/particles.ts
-  var Particles = class {
-    constructor(ctx2, center = { x: 0, y: 0 }) {
+  // src/lights/directional_light.ts
+  var DirectLight = class {
+    constructor(ctx2, walls, position = { x: 0, y: 0 }, startAngle = 0, endAngle = 1, lightColor = "cyan", increment = 0.1) {
       this.rays = [];
-      this.lines = [];
-      this.angles = [];
-      this.getUniquePoints = (walls) => {
-        let pts = [];
-        walls.forEach((wall) => {
-          pts.push(wall.p1, wall.p2);
-        });
-        let set = {};
-        const uniquePoints = pts.filter((p) => {
-          let key = p.x + "," + p.y;
-          if (key in set) {
-            return false;
-          } else {
-            set[key] = true;
-            return true;
-          }
-        });
-        return uniquePoints;
-      };
-      this.findClosest = (walls) => {
+      this.sceneWalls = [];
+      this.startAngle = 0;
+      this.endAngle = 1;
+      this.lightColor = "cyan";
+      this.position = { x: 0, y: 0 };
+      this.increment = 0.1;
+      this.findClosest = (walls, rays) => {
+        rays = rays === void 0 ? this.rays : rays;
         let intersects = [];
-        for (let ray of this.rays) {
+        for (let ray of rays) {
           let closest = null;
           let max = Number.MAX_VALUE;
           for (let wall of walls) {
@@ -251,67 +239,138 @@
         return intersects;
       };
       this.ctx = ctx2;
-      this.center = center;
-      this.update();
+      this.startAngle = startAngle;
+      this.endAngle = endAngle;
+      this.position = position;
+      this.lightColor = lightColor;
+      this.increment = increment;
+      this.createRays(position);
+      this.getSceneWalls(walls);
     }
-    update() {
-      for (let line of this.lines) {
-        line.update();
-      }
-    }
-    calcIntersects(walls, pointer = { x: 0, y: 0 }, radius = 15, color) {
-      let transforms = [];
+    getSceneWalls(walls) {
+      let sceneWalls = [];
       for (let wall of walls) {
         if (wall instanceof Polygon) {
           let rays = wall.getLines();
-          transforms.push(...rays);
+          sceneWalls.push(...rays);
         } else {
-          transforms.push(wall);
+          sceneWalls.push(wall);
         }
       }
-      let uPoints = this.getUniquePoints(transforms);
-      this.lines = [];
-      this.rays = [];
-      for (let i = 0; i < uPoints.length; i++) {
-        let pos = uPoints[i];
-        let ray = new Ray(pointer, pos);
+      this.sceneWalls = sceneWalls;
+    }
+    updateWalls(walls) {
+      this.getSceneWalls(walls);
+    }
+    // Create rays between a starting angle and ending angle
+    createRays(position) {
+      for (let angle = this.startAngle; angle <= this.endAngle; angle += this.increment) {
+        let radians = toRad(angle);
+        let posX = Math.cos(radians) + position.x;
+        let posY = Math.sin(radians) + position.y;
+        let ray = new Ray(position, {
+          x: posX,
+          y: posY
+        });
+        ray.rayExtension();
+        this.rays.push(ray);
+      }
+    }
+    updatePosition(sourcePoint, point) {
+      for (let i = 0; i < this.rays.length; i++) {
+        this.rays[i].p1 = sourcePoint;
+        this.rays[i].p2 = point[i];
+      }
+    }
+    calcIntersects(position, rays) {
+      position = position === void 0 ? this.position : position;
+      rays = rays === void 0 ? this.rays : rays;
+      let sightLines = [];
+      let intersects = this.findClosest(this.sceneWalls, rays);
+      for (let intersect of intersects) {
+        let line = new Ray(position, intersect);
+        sightLines.push(line);
+      }
+      this.drawSightPolygon(sightLines);
+    }
+    drawSightPolygon(lines) {
+      let angles = [];
+      this.ctx.fillStyle = this.lightColor;
+      for (let line of lines) {
+        angles.push({ line, angle: line.getAngle() });
+      }
+      this.ctx.beginPath();
+      this.ctx.moveTo(angles[0].line.p2.x, angles[0].line.p2.y);
+      for (let i = 1; i < angles.length; i++) {
+        this.ctx.lineTo(angles[i].line.p2.x, angles[i].line.p2.y);
+      }
+      this.ctx.lineTo(
+        angles[angles.length - 1].line.p2.x,
+        angles[angles.length - 1].line.p2.y
+      );
+      this.ctx.lineTo(
+        angles[angles.length - 1].line.p1.x,
+        angles[angles.length - 1].line.p1.y
+      );
+      this.ctx.closePath();
+      this.ctx.fill();
+    }
+  };
+
+  // src/lights/point_light.ts
+  var PointLight = class extends DirectLight {
+    constructor(ctx2, walls, center = { x: 0, y: 0 }) {
+      super(ctx2, walls, center, 0, 360, "cyan", 1);
+      this.uniquePoints = [];
+      this.getUniquePoints = () => {
+        let pts = [];
+        this.sceneWalls.forEach((wall) => {
+          pts.push(wall.p1, wall.p2);
+        });
+        let set = {};
+        const uniquePoints = pts.filter((p) => {
+          let key = p.x + "," + p.y;
+          if (key in set) {
+            return false;
+          } else {
+            set[key] = true;
+            return true;
+          }
+        });
+        this.uniquePoints = uniquePoints;
+      };
+      this.ctx = ctx2;
+      this.position = center;
+      this.getSceneWalls(walls);
+      this.getUniquePoints();
+      this.getUniqueRays(center);
+      this.createRays(center);
+    }
+    getUniqueRays(position) {
+      for (let i = 0; i < this.uniquePoints.length; i++) {
+        let pos = this.uniquePoints[i];
+        let ray = new Ray(position, pos);
         let magnitude = ray.distance();
         let angle = ray.getAngle();
         let leftRayEnd = {
-          x: magnitude * Math.cos(angle - 1e-5) + pointer.x,
-          y: magnitude * Math.sin(angle - 1e-5) + pointer.y
+          x: magnitude * Math.cos(angle - 1e-5) + position.x,
+          y: magnitude * Math.sin(angle - 1e-5) + position.y
         };
         let rightRayEnd = {
-          x: magnitude * Math.cos(angle + 1e-5) + pointer.x,
-          y: magnitude * Math.sin(angle + 1e-5) + pointer.y
+          x: magnitude * Math.cos(angle + 1e-5) + position.x,
+          y: magnitude * Math.sin(angle + 1e-5) + position.y
         };
-        let rightRay = new Ray(pointer, rightRayEnd);
-        let leftRay = new Ray(pointer, leftRayEnd);
+        let rightRay = new Ray(position, rightRayEnd);
+        let leftRay = new Ray(position, leftRayEnd);
         leftRay.rayExtension();
         rightRay.rayExtension();
         this.rays.push(leftRay, ray, rightRay);
       }
-      for (let angle = 0; angle < Math.PI * 2; angle += Math.PI * 2 / 40) {
-        let posX = Math.cos(angle) * radius;
-        let posY = Math.sin(angle) * radius;
-        let spanRay = new Ray(pointer, {
-          x: posX + pointer.x,
-          y: posY + pointer.y
-        });
-        spanRay.rayExtension();
-        this.rays.push(spanRay);
-      }
-      let intersects = this.findClosest(transforms);
-      for (let intersect of intersects) {
-        let line = new Line(this.ctx, pointer, intersect, "rgba(0,0,0,0)");
-        this.lines.push(line);
-      }
-      this.drawSightPolygon(color);
     }
-    drawSightPolygon(color) {
+    drawSightPolygon(lines) {
       let angles = [];
-      this.ctx.fillStyle = color;
-      for (let line of this.lines) {
+      this.ctx.fillStyle = this.lightColor;
+      for (let line of lines) {
         angles.push({ line, angle: line.getAngle() });
       }
       angles = angles.sort((a, b) => {
@@ -325,78 +384,33 @@
       this.ctx.fill();
       this.ctx.closePath();
     }
-    // Need if light rays are static
-    updateRays(pointer, pos) {
-      for (let i = 0; i < pos.length; i++) {
-        this.rays[i].p1 = pointer;
-        this.rays[i].p2 = pos[i];
-      }
+    // If the walls are moving we have to get the new vertex positions and rebuild all the rays
+    updateRays(walls, position) {
+      position = position === void 0 ? this.position : position;
+      this.rays = [];
+      this.updateWalls(walls);
+      this.getUniquePoints();
+      this.getUniqueRays(position);
+      this.createRays(position);
+      this.calcIntersects(position);
     }
   };
 
-  // src/pointer_light.ts
-  var MAX_ANGLE = 55;
-  var PointerLightRay = class {
-    constructor(ctx2, position = { x: 0, y: 0 }) {
+  // src/lights/tracking_light.ts
+  var TrackLight = class extends DirectLight {
+    constructor(ctx2, walls, position = { x: 0, y: 0 }, startAngle = 0, endAngle = 2) {
+      super(ctx2, walls, position, startAngle, endAngle);
       this.rays = [];
-      this.initialRays = [];
-      this.lines = [];
-      this.position = { x: 0, y: 0 };
-      this.calcIntersects = (walls, pointer) => {
-        this.lines = [];
-        let transforms = [];
-        for (let wall of walls) {
-          if (wall instanceof Polygon) {
-            let rays = wall.getLines();
-            transforms.push(...rays);
-          } else {
-            transforms.push(wall);
-          }
-        }
-        let intersects = this.findClosest(transforms);
-        for (let intersect of intersects) {
-          let line = new Line(this.ctx, pointer, intersect, "rgba(232,232,254,0)");
-          this.lines.push(line);
-        }
-        this.drawSightPolygon("rgba(232,232,254,0.5)");
-      };
-      this.findClosest = (walls) => {
-        let intersects = [];
-        for (let ray of this.rays) {
-          let closest = null;
-          let max = Number.MAX_VALUE;
-          for (let wall of walls) {
-            let hit = checkLineCollision(ray, wall);
-            if (hit) {
-              const dist = distance(ray.p1, hit);
-              if (dist < max && dist !== 0) {
-                max = dist;
-                closest = hit;
-              }
-            }
-          }
-          if (closest) {
-            intersects.push(closest);
-          }
-        }
-        return intersects;
-      };
       this.ctx = ctx2;
       this.position = position;
-      this.createRays();
-      this.update();
+      this.createRays(position);
     }
-    draw() {
-      for (let line of this.lines) {
-        line.update();
-      }
-    }
-    lookAt(startPointer, mouse) {
-      let pointerRay = new Ray(startPointer, mouse);
+    lookAt(walls, startPoint, trackPoint) {
+      let pointerRay = new Ray(startPoint, trackPoint);
       let rayPos = [];
-      this.rays = [];
-      let offset = MAX_ANGLE / 2;
-      for (let ray of this.initialRays) {
+      let trackRays = [];
+      let offset = this.endAngle / 2;
+      for (let ray of this.rays) {
         if (ray) {
           let angle = toDeg(pointerRay.getAngle());
           let pos = { x: ray.p2.x - ray.p1.x, y: ray.p2.y - ray.p1.y };
@@ -407,59 +421,12 @@
       }
       for (let i = 0; i < rayPos.length; i++) {
         if (rayPos[i]) {
-          let extender = new Ray(startPointer, rayPos[i]);
-          this.rays.push(extender);
+          let ray = new Ray(startPoint, rayPos[i]);
+          trackRays.push(ray);
         }
       }
-    }
-    createRays() {
-      for (let angle = 0; angle <= MAX_ANGLE; angle += 0.1) {
-        let radians = angle * Math.PI / 180;
-        let posX = Math.cos(radians) + this.position.x;
-        let posY = Math.sin(radians) + this.position.y;
-        let ray = new Ray(this.position, {
-          x: posX,
-          y: posY
-        });
-        ray.rayExtension();
-        this.initialRays.push(ray);
-      }
-    }
-    updatePosition(sourcePoint, point) {
-      for (let i = 0; i < this.initialRays.length; i++) {
-        this.initialRays[i].p1 = sourcePoint;
-        this.initialRays[i].p2 = point[i];
-      }
-    }
-    update() {
-      this.draw();
-      this.ctx.stroke();
-    }
-    drawSightPolygon(color) {
-      let angles = [];
-      this.ctx.fillStyle = color;
-      this.ctx.lineWidth = 3;
-      this.ctx.strokeStyle = "rgba(232,232,254,1)";
-      for (let line of this.lines) {
-        angles.push({ line, angle: line.getAngle() });
-      }
-      this.ctx.beginPath();
-      this.ctx.moveTo(angles[0].line.p2.x, angles[0].line.p2.y);
-      for (let i = 1; i < angles.length; i++) {
-        this.ctx.lineTo(angles[i].line.p2.x, angles[i].line.p2.y);
-      }
-      this.ctx.stroke();
-      this.ctx.closePath();
-      this.ctx.lineTo(
-        angles[angles.length - 1].line.p2.x,
-        angles[angles.length - 1].line.p2.y
-      );
-      this.ctx.lineTo(
-        angles[angles.length - 1].line.p1.x,
-        angles[angles.length - 1].line.p1.y
-      );
-      this.ctx.fill();
-      this.ctx.closePath();
+      this.updateWalls(walls);
+      this.calcIntersects(startPoint, trackRays);
     }
   };
 
@@ -501,12 +468,9 @@
   Collections.push(...polygons);
   Collections.push(circle);
   var circlePointer = { x: circle.x, y: circle.y };
-  var particles = [];
-  for (let i = 0; i < 12; i++) {
-    particles.push(new Particles(ctx, circlePointer));
-  }
-  var pLight = new PointerLightRay(ctx, { x: 500, y: 450 });
-  var dLight = new PointerLightRay(ctx, circlePointer);
+  var pointLight = new PointLight(ctx, polygons, circlePointer);
+  var directLight = new DirectLight(ctx, polygons, circlePointer, 0, 30);
+  var trackLight = new TrackLight(ctx, polygons, circlePointer, 0, 30);
   var mousePointer = { x: 0, y: 0 };
   var checkHit = (scanRay) => {
     for (let entity of Collections) {
@@ -539,7 +503,7 @@
         x: initialPoint.x - initialEntity.x,
         y: initialPoint.y - initialEntity.y
       };
-      for (let ray of dLight.initialRays) {
+      for (let ray of trackLight.rays) {
         initialPosition = {
           x: initialPoint.x - ray.p2.x,
           y: initialPoint.y - ray.p2.y
@@ -563,7 +527,7 @@
         for (let position of initialPositions) {
           translate.push({ x: offsetX - position.x, y: offsetY - position.y });
         }
-        dLight.updatePosition({ x: posX, y: posY }, translate);
+        trackLight.updatePosition({ x: posX, y: posY }, translate);
       }
     };
     canvas.addEventListener("mousemove", move);
@@ -573,8 +537,6 @@
     };
   };
   var draw = () => {
-    dLight.update();
-    pLight.update();
     circle.update();
     for (let polygon of polygons) {
       polygon.update();
@@ -592,15 +554,12 @@
     ctx.font = "normal 28px Arial";
     ctx.fillText(frames, canvas.width - 140, 40);
   };
-  var update = (timestamp) => {
+  var update = () => {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    dLight.lookAt(circlePointer, { x: 0, y: 0 });
-    dLight.calcIntersects(polygons, circlePointer);
-    dLight.lookAt({ x: 80, y: 140 }, { x: 500, y: 300 });
-    dLight.calcIntersects(polygons, { x: 80, y: 140 });
     displayFPS();
+    trackLight.lookAt(polygons, circlePointer, mousePointer);
     draw();
     requestAnimationFrame(update);
   };
