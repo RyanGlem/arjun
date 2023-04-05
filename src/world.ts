@@ -1,5 +1,6 @@
 import { Circle } from "./circle";
 import { Line } from "./line";
+import { Ship } from "./ship"
 import { Polygon } from "./polygon";
 import { Ray, Point } from "./ray";
 import { PointLight } from "./lights/point_light";
@@ -15,7 +16,6 @@ canvas.height = window.innerHeight;
 ctx.imageSmoothingEnabled = true;
 ctx.imageSmoothingQuality = "high";
 
-let start: number;
 let getRandX = () => {
   return Math.floor(Math.random() * canvas.width);
 };
@@ -25,6 +25,7 @@ let getRandY = () => {
 };
 
 let polygons = [
+  new Ship (ctx, {x: 350, y:150}, 3, 50),
   new Polygon(ctx, 3, { x: 300, y: 400 }, 40),
   new Polygon(ctx, 4, { x: 700, y: 100 }, 60),
   new Polygon(ctx, 5, { x: 800, y: 600 }, 80),
@@ -155,17 +156,28 @@ const displayFPS = () => {
   ctx.fillText(frames, canvas.width - 140, 40);
 };
 
-const update = () => {
+let ship = polygons[0] as Ship
+
+let start: number;
+let deltaTime : number = 0.001
+// The update method is called when the browswer is ready for a repaint to redraw the screen
+const update = (timestamp: DOMHighResTimeStamp) => {
+  if (!start) start = timestamp;
+  const elapsed = timestamp - start;
+
+  // This is the time it takes to call every loop which is about 6 MS
+ //elapsedSinceLastLoop = timestamp - lastTime // 6 MS between each frame
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   displayFPS();
-  trackLight.lookAt(polygons, circlePointer, mousePointer)
-  //pointLight.updateRays(polygons, circlePointer)
-
+  ship.move(keys)
+  ship.lookAt(mousePointer)
+  ship.updateSimulation(deltaTime)
   draw();
   requestAnimationFrame(update);
 };
+
 
 canvas.addEventListener("mousemove", (event: MouseEvent) => {
   let mouseX = event.offsetX;
@@ -174,6 +186,55 @@ canvas.addEventListener("mousemove", (event: MouseEvent) => {
   mousePointer = { x: mouseX, y: mouseY };
 });
 
+const keys = {
+  w : {
+    pressed : false
+  },
+  s : {
+    pressed : false
+  },
+  a : {
+    pressed : false
+  },
+  d : {
+    pressed : false
+  }
+}
+
 canvas.addEventListener("mousedown", drag);
+
+window.addEventListener("keydown", (event : KeyboardEvent) => {
+  switch (event.key) {
+    case "w":
+      keys.w.pressed = true
+      break;
+    case "s":
+      keys.s.pressed = true
+      break;
+    case "a":
+      keys.a.pressed = true
+      break;
+    case "d":
+      keys.d.pressed = true
+      break;
+  }
+})
+
+window.addEventListener("keyup", (event : KeyboardEvent) => {
+  switch (event.key) {
+    case "w":
+      keys.w.pressed = false
+      break;
+    case "s":
+      keys.s.pressed = false
+      break;
+    case "a":
+      keys.a.pressed = false
+      break;
+    case "d":
+      keys.d.pressed = false
+      break;
+  }
+})
 
 requestAnimationFrame(update);

@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "ts-node-dev --respawn  src/server.ts && esbuild src/world.ts --outfile=src/bundle.js --bundle --watch",
+    "start": "ts-node-dev --respawn  src/server.ts",
     "build": "esbuild src/world.ts --bundle --outfile=src/bundle.js",
     "watch": "esbuild src/world.ts --outfile=src/bundle.js --bundle --watch"
   },

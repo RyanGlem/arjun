@@ -142,34 +142,53 @@
 
   // src/polygon.ts
   var Polygon = class {
-    constructor(ctx2, sides = 3, position, radius) {
+    constructor(ctx2, sides = 3, position, radius, strokeColor = "cyan") {
       this.sides = 3;
+      this.angle = 0;
+      // In degrees
       this.radius = 10;
       this.lines = [];
+      this.rotPos = [];
       this.vertices = [];
       this.position = { x: 0, y: 0 };
+      this.fillColor = "rgba(0,0,0,0)";
+      this.strokeColor = "rgba(0,0,0,0)";
       this.ctx = ctx2;
       this.position = position;
+      this.strokeColor = strokeColor;
       this.sides = sides;
       if (radius)
         this.radius = radius;
       this.createPoints();
+      this.position = this.getCenterPosition();
+      this.centerCircle = new Circle(
+        ctx2,
+        5,
+        this.position.x,
+        this.position.y,
+        "red"
+      );
       this.update();
     }
-    draw() {
+    draw(vertices) {
+      vertices = vertices === void 0 ? this.vertices : vertices;
+      this.ctx.strokeStyle = this.strokeColor;
       this.ctx.beginPath();
-      this.ctx.moveTo(this.vertices[0].x, this.vertices[0].y);
-      for (let i = 1; i < this.vertices.length; i++) {
-        let pos = this.vertices[i];
+      this.ctx.moveTo(vertices[0].x, vertices[0].y);
+      for (let i = 1; i < vertices.length; i++) {
+        let pos = vertices[i];
         this.ctx.lineTo(pos.x, pos.y);
       }
+      this.ctx.moveTo(this.position.x, this.position.y);
+      this.ctx.lineTo(vertices[0].x, vertices[0].y);
       this.ctx.closePath();
       this.ctx.stroke();
     }
     createPoints() {
-      for (let angle = 0; angle < Math.PI * 2; angle += Math.PI * 2 / this.sides) {
-        let posX = Math.cos(angle + 5) * this.radius + this.position.x;
-        let posY = Math.sin(angle + 5) * this.radius + this.position.y;
+      for (let angle = 0; angle <= 360; angle += Math.floor(360 / this.sides)) {
+        let radians = toRad(angle);
+        let posX = Math.cos(radians) * this.radius + this.position.x;
+        let posY = Math.sin(radians) * this.radius + this.position.y;
         this.vertices.push({ x: posX, y: posY });
       }
     }
@@ -201,8 +220,112 @@
       this.vertices = points;
     }
     update() {
-      this.ctx.strokeStyle = "white";
-      this.draw();
+      this.position = this.getCenterPosition();
+      this.rotate();
+      this.centerCircle.update();
+      this.centerCircle.updatePosition(this.position.x, this.position.y);
+    }
+    getCenterPosition() {
+      if (this.sides == 3) {
+        return {
+          x: (this.vertices[0].x + this.vertices[1].x + this.vertices[2].x) / 3,
+          y: (this.vertices[0].y + this.vertices[1].y + this.vertices[2].y) / 3
+        };
+      }
+      let signedArea = 0;
+      let centerX = 0;
+      let centerY = 0;
+      for (let i = 0; i < this.sides; i++) {
+        let x0 = this.vertices[i].x;
+        let y0 = this.vertices[i].y;
+        let x1 = this.vertices[(i + 1) % this.sides].x;
+        let y1 = this.vertices[(i + 1) % this.sides].y;
+        let A = x0 * y1 - x1 * y0;
+        signedArea += A;
+        centerX += (x0 + x1) * A;
+        centerY += (y0 + y1) * A;
+      }
+      signedArea *= 0.5;
+      centerX /= 6 * signedArea;
+      centerY /= 6 * signedArea;
+      return { x: centerX, y: centerY };
+    }
+    rotate() {
+      this.rotPos = [];
+      for (let point of this.vertices) {
+        if (point) {
+          let pos = {
+            x: point.x - this.position.x,
+            y: point.y - this.position.y
+          };
+          let xPrime = pos.x * Math.cos(toRad(this.angle)) - pos.y * Math.sin(toRad(this.angle));
+          let yPrime = pos.y * Math.cos(toRad(this.angle)) + pos.x * Math.sin(toRad(this.angle));
+          this.rotPos.push({
+            x: xPrime + this.position.x,
+            y: yPrime + this.position.y
+          });
+        }
+      }
+      this.draw(this.rotPos);
+    }
+  };
+
+  // src/ship.ts
+  var Ship = class extends Polygon {
+    constructor(ctx2, position = { x: 0, y: 0 }, sides = 3, radius = 10) {
+      super(ctx2, sides, position, radius, "cyan");
+      this.mass = 1;
+      this.speed = 0;
+      this.maxSpeed = 3;
+      this.lookAtAngle = 0;
+      this.turnSpeed = 0.4;
+      this.vertsPos = [];
+      this.velocity = { x: 0, y: 0 };
+      this.force = { x: 0, y: 0 };
+    }
+    lookAt(trackPoint) {
+      let pointerRay = new Ray(this.position, trackPoint);
+      let angle = toDeg(pointerRay.getAngle());
+      this.angle = angle;
+    }
+    move(keys2) {
+      if (keys2.w.pressed) {
+        for (let i = 0; i < this.vertices.length; i++) {
+          if (this.speed <= 10) {
+            this.speed += 1e-3;
+          }
+        }
+      }
+      if (keys2.s.pressed) {
+        for (let i = 0; i < this.vertices.length; i++) {
+          if (this.speed >= -1) {
+            this.speed -= 1e-3;
+          }
+        }
+      }
+      if (keys2.a.pressed) {
+        for (let i = 0; i < this.vertices.length; i++) {
+          this.angle -= this.turnSpeed * 0.7;
+        }
+      }
+      if (keys2.d.pressed) {
+        for (let i = 0; i < this.vertices.length; i++) {
+          this.angle += this.turnSpeed * 0.7;
+        }
+      }
+    }
+    updateSimulation(deltaTime2) {
+      let posX = Math.cos(toRad(this.angle)) * this.speed + this.position.x;
+      let posY = Math.sin(toRad(this.angle)) * this.speed + this.position.y;
+      let forceVector = new Ray(this.position, { x: posX, y: posY });
+      let xSpeed = (forceVector.p2.x - forceVector.p1.x) / this.mass;
+      let ySpeed = (forceVector.p2.y - forceVector.p1.y) / this.mass;
+      this.velocity.x += xSpeed;
+      this.velocity.y += ySpeed;
+      for (let i = 0; i < this.vertices.length; i++) {
+        this.vertices[i].x += this.velocity.x * deltaTime2;
+        this.vertices[i].y += this.velocity.y * deltaTime2;
+      }
     }
   };
 
@@ -440,6 +563,7 @@
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
   var polygons = [
+    new Ship(ctx, { x: 350, y: 150 }, 3, 50),
     new Polygon(ctx, 3, { x: 300, y: 400 }, 40),
     new Polygon(ctx, 4, { x: 700, y: 100 }, 60),
     new Polygon(ctx, 5, { x: 800, y: 600 }, 80),
@@ -554,12 +678,20 @@
     ctx.font = "normal 28px Arial";
     ctx.fillText(frames, canvas.width - 140, 40);
   };
-  var update = () => {
+  var ship = polygons[0];
+  var start;
+  var deltaTime = 1e-3;
+  var update = (timestamp) => {
+    if (!start)
+      start = timestamp;
+    const elapsed = timestamp - start;
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     displayFPS();
-    trackLight.lookAt(polygons, circlePointer, mousePointer);
+    ship.move(keys);
+    ship.lookAt(mousePointer);
+    ship.updateSimulation(deltaTime);
     draw();
     requestAnimationFrame(update);
   };
@@ -569,6 +701,52 @@
     circlePointer = { x: circle.x, y: circle.y };
     mousePointer = { x: mouseX, y: mouseY };
   });
+  var keys = {
+    w: {
+      pressed: false
+    },
+    s: {
+      pressed: false
+    },
+    a: {
+      pressed: false
+    },
+    d: {
+      pressed: false
+    }
+  };
   canvas.addEventListener("mousedown", drag);
+  window.addEventListener("keydown", (event) => {
+    switch (event.key) {
+      case "w":
+        keys.w.pressed = true;
+        break;
+      case "s":
+        keys.s.pressed = true;
+        break;
+      case "a":
+        keys.a.pressed = true;
+        break;
+      case "d":
+        keys.d.pressed = true;
+        break;
+    }
+  });
+  window.addEventListener("keyup", (event) => {
+    switch (event.key) {
+      case "w":
+        keys.w.pressed = false;
+        break;
+      case "s":
+        keys.s.pressed = false;
+        break;
+      case "a":
+        keys.a.pressed = false;
+        break;
+      case "d":
+        keys.d.pressed = false;
+        break;
+    }
+  });
   requestAnimationFrame(update);
 })();
