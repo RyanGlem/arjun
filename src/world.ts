@@ -1,5 +1,4 @@
 import { Circle } from "./circle";
-import { Line } from "./line";
 import { Ship } from "./ship";
 import { Polygon } from "./polygon";
 import { Ray, Point } from "./ray";
@@ -24,13 +23,13 @@ let getRandY = () => {
   return Math.floor(Math.random() * canvas.height);
 };
 
-const archer = new Ship (ctx, undefined, {x: 120, y: 330}, 3, 12, "red")
+const archer = new Ship(ctx, undefined, { x: 120, y: 330 }, 3, 12, "red");
 let polygons = [
-  new Ship (ctx, undefined, {x: 121, y: 330}, 3, 12, "magenta"),
-  new Ship (ctx, undefined, {x: 122, y: 330}, 3, 12, "yellow"),
-  new Ship (ctx, undefined, {x: 123, y: 330}, 3, 12, "blue"),
-  new Ship (ctx, undefined, {x: 124, y: 330}, 3, 12, "green"),
-  new Ship (ctx, undefined, {x: 125, y: 330}, 3, 12, "orange"),
+  new Ship(ctx, undefined, { x: 121, y: 330 }, 3, 12, "magenta"),
+  new Ship(ctx, undefined, { x: 122, y: 330 }, 3, 12, "yellow"),
+  new Ship(ctx, undefined, { x: 123, y: 330 }, 3, 12, "blue"),
+  new Ship(ctx, undefined, { x: 124, y: 330 }, 3, 12, "green"),
+  new Ship(ctx, undefined, { x: 125, y: 330 }, 3, 12, "orange"),
   new Polygon(ctx, 3, { x: 300, y: 400 }, 40),
   new Polygon(ctx, 4, { x: 700, y: 100 }, 60),
   new Polygon(ctx, 5, { x: 800, y: 600 }, 80),
@@ -40,25 +39,19 @@ let polygons = [
   new Polygon(ctx, 4, { x: 110, y: 150 }, 100),
   new Polygon(ctx, 4, { x: 900, y: 500 }, 200),
   new Polygon(ctx, 5, { x: 2000, y: 500 }, 200),
-  new Line(ctx, { x: 0, y: 0 }, { x: canvas.width, y: 0 }, "black"),
-  new Line(ctx, { x: 0, y: 0 }, { x: 0, y: canvas.height }, "black"),
-  new Line(
-    ctx,
-    { x: 0, y: canvas.height },
-    { x: canvas.width, y: canvas.height },
-    "black"
-  ),
-  new Line(
-    ctx,
-    { x: canvas.width, y: 0 },
-    { x: canvas.width, y: canvas.height },
-    "black"
-  ),
 ];
-const ship = new Ship (ctx, polygons, { x: canvas.width / 2, y: canvas.height / 2 }, 3, 50, undefined, true)
+const ship = new Ship(
+  ctx,
+  polygons,
+  { x: canvas.width / 2, y: canvas.height / 2 },
+  3,
+  50,
+  undefined,
+  true
+);
 const circle = new Circle(ctx, 15, canvas.width / 2, canvas.height / 2, "gray");
 const Collections: any[] = [];
-polygons.push(archer)
+polygons.push(archer);
 Collections.push(...polygons);
 Collections.push(circle);
 
@@ -139,11 +132,11 @@ const drag = (event: MouseEvent) => {
 };
 
 const draw = () => {
-  ship.update()
+  ship.update();
   for (let polygon of polygons) {
     polygon.update();
   }
-  circle.update(); 
+  circle.update();
 };
 
 let frameTime = 0;
@@ -173,24 +166,26 @@ const update = (timestamp: DOMHighResTimeStamp) => {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  let mouseCamOffset = {x:mousePointer.x - camera.topLeftPos.x, y:mousePointer.y - camera.topLeftPos.y}
+  let mouseCamOffset = {
+    x: mousePointer.x - camera.topLeftPos.x,
+    y: mousePointer.y - camera.topLeftPos.y,
+  };
 
   displayFPS();
 
   ship.move(keys);
-  ship.lookAt(mouseCamOffset)
-
+  ship.lookAt(mouseCamOffset);
   ship.updateSimulation(deltaTime, camera.topLeftPos);
   ship.translateCamera(camera);
   ctx.translate(camera.topLeftPos.x, camera.topLeftPos.y);
   for (let poly of polygons) {
     if (poly instanceof Ship) {
-      poly.updateSimulation (deltaTime, camera.topLeftPos)
-      poly.speed = 10
-      poly.lookAt (mouseCamOffset)
+      poly.updateSimulation(deltaTime, camera.topLeftPos);
+      poly.speed = 10;
+      poly.lookAt(mouseCamOffset);
     }
   }
-  ship.drawShipLight(polygons)
+  ship.drawShipLight(polygons);
   draw();
   requestAnimationFrame(update);
 };

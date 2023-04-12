@@ -10,6 +10,7 @@ export class DirectLight {
   rays: Ray[] = [];
   lightColor = "cyan"
   rotRays: Ray[] = [];
+  drawExtenders = true;
   sceneWalls: Ray[] = [];
   ctx: CanvasRenderingContext2D;
   position: Point = { x: 0, y: 0 };
@@ -22,15 +23,18 @@ export class DirectLight {
     endAngle = 1,
     lightColor: string = "cyan",
     increment = 0.1,
-    rayLength = 500
+    rayLength = 500,
+    drawExtenders = true
   ) {
     this.ctx = ctx;
-    this.startAngle = startAngle;
     this.endAngle = endAngle;
     this.position = position;
-    this.lightColor = lightColor
     this.increment = increment
     this.rayLength = rayLength
+    this.lightColor = lightColor
+    this.startAngle = startAngle;
+    this.drawExtenders = drawExtenders
+
     this.createRays(position);
     this.getSceneWalls(walls);
   }
@@ -142,7 +146,7 @@ export class DirectLight {
 
       if (closest) {
         intersects.push(closest);
-      } else {
+      } else if(this.drawExtenders) {
         intersects.push(ray.p2)
       }
     }
