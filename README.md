@@ -1,5 +1,4 @@
-# Ray casting concept
-Simple concept using ray casting with the HTML canvas to create lighting effects. 
+# Project AR-1
+Experimental branch that deals with player movement, physics and lighting objects.
 
-This includes point lights, direct lights, and track lights.
  
