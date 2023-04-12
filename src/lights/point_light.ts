@@ -6,7 +6,7 @@ export class PointLight extends DirectLight {
   uniquePoints: Point[] = []
 
   constructor(ctx: CanvasRenderingContext2D, walls: (Ray | Polygon)[], center = { x: 0, y: 0 }, ) {
-    super(ctx, walls, center, 0, 360, "cyan", 1)
+    super(ctx, walls, center, 0, 360, "cyan", 1, 1500, false)
     this.ctx = ctx;
     this.position = center;
     
