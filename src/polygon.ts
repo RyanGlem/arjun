@@ -7,35 +7,27 @@ export class Polygon {
   angle = 0.0 // In degrees
   radius = 10;
   lines: Ray[] = [];
-  centerCircle: Circle;
   rotPos : Point[] = []
   vertices: Point[] = [];
+  fillColor = "rgba(0,0,0,0)";
   ctx: CanvasRenderingContext2D;
+  strokeColor = "rgba(0,0,0,0)";
   position: Point = { x: 0, y: 0 };
-  fillColor: string = "rgba(0,0,0,0)";
-  strokeColor: string = "rgba(0,0,0,0)";
 
   constructor(
     ctx: CanvasRenderingContext2D,
     sides = 3,
     position: Point,
-    radius : number,
+    radius = 10,
     strokeColor = "cyan",  
   ) {
     this.ctx = ctx;
     this.position = position;
     this.strokeColor = strokeColor;
     this.sides = sides;
-    if (radius) this.radius = radius;
+    this.radius = radius;
     this.createPoints();
     this.position = this.getCenterPosition();
-    this.centerCircle = new Circle(
-      ctx,
-      5,
-      this.position.x,
-      this.position.y,
-      "red"
-    );
     this.update();
   }
 
@@ -48,8 +40,6 @@ export class Polygon {
       let pos = vertices[i];
       this.ctx.lineTo(pos.x, pos.y);
     }  
-    this.ctx.moveTo(this.position.x, this.position.y)
-    this.ctx.lineTo(vertices[0].x, vertices[0].y) 
     this.ctx.closePath();
     this.ctx.stroke();
   }
@@ -58,8 +48,8 @@ export class Polygon {
     for (let angle = 0; angle <= 360; angle += Math.floor(360 / this.sides)) {
       let radians = toRad(angle);
 
-      let posX = Math.cos(radians) * this.radius + this.position.x;
-      let posY = Math.sin(radians) * this.radius + this.position.y;
+      let posX = Math.cos(radians) * this.radius + (this.position.x);
+      let posY = Math.sin(radians) * this.radius + (this.position.y) ;
 
       this.vertices.push({ x: posX, y: posY });
     }
@@ -67,13 +57,12 @@ export class Polygon {
 
   getLines() {
     let lines: Ray[] = [];
-    let p1 = this.vertices[0];
-    let p2 = this.vertices[this.vertices.length - 1];
+    let p1 = this.rotPos[0];
+    let p2 = this.rotPos[this.rotPos.length - 1];
     lines.push(new Ray(p1, p2));
-
-    for (let i = 0; i < this.vertices.length - 1; i++) {
-      p1 = this.vertices[i];
-      p2 = this.vertices[i + 1];
+    for (let i = 0; i < this.rotPos.length - 1; i++) {
+      p1 = this.rotPos[i];
+      p2 = this.rotPos[i + 1];
       let line = new Ray(p1, p2);
       lines.push(line);
     }
@@ -99,8 +88,6 @@ export class Polygon {
   update() {
     this.position = this.getCenterPosition();
     this.rotate()
-    this.centerCircle.update();
-    this.centerCircle.updatePosition(this.position.x, this.position.y);
   }
 
   getCenterPosition(): Point {

@@ -19,9 +19,8 @@ export class Line extends Ray {
     this.ctx.beginPath();
     this.ctx.moveTo(this.p1.x, this.p1.y);
     this.ctx.lineTo(this.p2.x, this.p2.y);
-    this.ctx.stroke();
     this.ctx.closePath()
-    
+    this.ctx.stroke();
   }
 
   update() {

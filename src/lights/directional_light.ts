@@ -1,17 +1,19 @@
 import { Ray, Point } from "../ray";
 import { Polygon } from "../polygon";
-import { checkLineCollision, distance, toRad } from "../linear_operations";
+import { checkLineCollision, distance, toDeg, toRad, getAngle } from "../linear_operations";
 
 export class DirectLight {
+  endAngle = 1;
+  startAngle = 0;
+  increment = 0.1
+  rayLength = 500
   rays: Ray[] = [];
+  lightColor = "cyan"
+  rotRays: Ray[] = [];
   sceneWalls: Ray[] = [];
-  startAngle: number = 0;
-  endAngle: number = 1;
   ctx: CanvasRenderingContext2D;
-  lightColor: string = "cyan";
   position: Point = { x: 0, y: 0 };
-  increment: number = 0.1
-
+  
   constructor(
     ctx: CanvasRenderingContext2D,
     walls: (Ray | Polygon)[],
@@ -19,7 +21,8 @@ export class DirectLight {
     startAngle = 0,
     endAngle = 1,
     lightColor: string = "cyan",
-    increment:number = 0.1
+    increment = 0.1,
+    rayLength = 500
   ) {
     this.ctx = ctx;
     this.startAngle = startAngle;
@@ -27,6 +30,7 @@ export class DirectLight {
     this.position = position;
     this.lightColor = lightColor
     this.increment = increment
+    this.rayLength = rayLength
     this.createRays(position);
     this.getSceneWalls(walls);
   }
@@ -58,15 +62,25 @@ export class DirectLight {
         x: posX,
         y: posY,
       });
-      ray.rayExtension();
+      ray.rayExtension(this.rayLength);
       this.rays.push(ray);
     }
   }
 
-  updatePosition(sourcePoint: Point, point: Point[]) {
+  updatePosition(sourcePoint: Point) {
+    this.position = sourcePoint
     for (let i = 0; i < this.rays.length; i++) {
+      let distance = this.rays[i].distance()
+      let normal = this.rays[i].normalize()
+
+      let pos = 
+      {
+        x: sourcePoint.x + distance * normal.x, 
+        y: sourcePoint.y + distance * normal.y
+      }
+
       this.rays[i].p1 = sourcePoint;
-      this.rays[i].p2 = point[i];
+      this.rays[i].p2 = pos;
     }
   }
 
@@ -89,7 +103,7 @@ export class DirectLight {
     this.ctx.fillStyle = this.lightColor;
 
     for (let line of lines) {
-      angles.push({ line: line, angle: line.getAngle() });
+      angles.push({ line: line, angle: line.getRayAngle()});
     }
 
     this.ctx.beginPath();
@@ -128,9 +142,34 @@ export class DirectLight {
 
       if (closest) {
         intersects.push(closest);
+      } else {
+        intersects.push(ray.p2)
       }
     }
-
     return intersects;
   };
+
+  rotate(angle = 0) {
+    this.rotRays = []
+
+    for (let ray of this.rays) {
+      if (ray) {
+        let pos = { x: ray.p2.x - ray.p1.x, y: ray.p2.y - ray.p1.y};
+        let xPrime =
+          pos.x * Math.cos(toRad(angle)) -
+          pos.y * Math.sin(toRad(angle));
+        let yPrime =
+          pos.y * Math.cos(toRad(angle)) +
+          pos.x * Math.sin(toRad(angle));
+        let rotationalRay = new Ray(ray.p1, { x: xPrime + ray.p1.x, y: yPrime + ray.p1.y })
+        this.rotRays.push(rotationalRay);
+      }
+    }
+    this.calcIntersects(this.position, this.rotRays)
+  }
+
+  lookAt (trackPoint : Point) {
+    let trackAngle = getAngle(this.position, trackPoint)
+    this.rotate(toDeg(trackAngle))
+  }
 }

@@ -22,7 +22,7 @@ export class PointLight extends DirectLight {
       let ray = new Ray(position, pos);
 
       let magnitude = ray.distance();
-      let angle = ray.getAngle();
+      let angle = ray.getRayAngle();
 
       let leftRayEnd = {
         x: magnitude * Math.cos(angle - 0.00001) + position.x,
@@ -47,7 +47,7 @@ export class PointLight extends DirectLight {
     this.ctx.fillStyle = this.lightColor;
 
     for (let line of lines) {
-      angles.push({ line: line, angle: line.getAngle() });
+      angles.push({ line: line, angle: line.getRayAngle() });
     }
 
     angles = angles.sort((a, b) => {

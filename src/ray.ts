@@ -1,3 +1,5 @@
+import { getAngle } from "./linear_operations";
+
 export interface Point {
   x: number;
   y: number;
@@ -6,6 +8,7 @@ export interface Point {
 export class Ray {
   p1: Point = { x: 0, y: 0 };
   p2: Point = { x: 0, y: 0 };
+  angle: number = 0.0
   constructor(p1?: Point, p2?: Point) {
     this.p1 = p1 === undefined ? this.p1 : p1;
     this.p2 = p2 === undefined ? this.p2 : p2;
@@ -42,11 +45,7 @@ export class Ray {
     this.p2 = { x: xPos, y: yPos };
   };
 
-  getAngle = () => {
-    let a = this.p2.x - this.p1.x
-    let b = this.p2.y - this.p1.y
-    let radians = Math.atan2(b, a)
-
-    return radians
+  getRayAngle = () => {
+    return getAngle (this.p1, this.p2)
   }
 }

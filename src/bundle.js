@@ -15,9 +15,9 @@
     draw() {
       this.ctx.beginPath();
       this.ctx.arc(this.x, this.y, this.radius, 0, 2 * Math.PI);
+      this.ctx.closePath();
       this.ctx.stroke();
       this.ctx.fill();
-      this.ctx.closePath();
     }
     update() {
       this.ctx.fillStyle = this.fillColor;
@@ -34,73 +34,6 @@
       } else {
         return false;
       }
-    }
-  };
-
-  // src/ray.ts
-  var Ray = class {
-    constructor(p1, p2) {
-      this.p1 = { x: 0, y: 0 };
-      this.p2 = { x: 0, y: 0 };
-      this.rayExtension = (distance2 = 1500) => {
-        let normal = this.normalize();
-        let xPos = this.p2.x + distance2 * normal.x;
-        let yPos = this.p2.y + distance2 * normal.y;
-        this.p2 = { x: xPos, y: yPos };
-      };
-      this.getAngle = () => {
-        let a = this.p2.x - this.p1.x;
-        let b = this.p2.y - this.p1.y;
-        let radians = Math.atan2(b, a);
-        return radians;
-      };
-      this.p1 = p1 === void 0 ? this.p1 : p1;
-      this.p2 = p2 === void 0 ? this.p2 : p2;
-    }
-    distance() {
-      return Math.sqrt((this.p2.x - this.p1.x) ** 2 + (this.p2.y - this.p1.y) ** 2);
-    }
-    slope() {
-      if (this.p1.x - this.p2.x != 0) {
-        return (this.p2.y - this.p1.y) / (this.p2.x - this.p1.x);
-      }
-      return Number.MAX_VALUE;
-    }
-    normalize() {
-      let normalX = this.p2.x - this.p1.x;
-      let normalY = this.p2.y - this.p1.y;
-      let normalLength = this.distance();
-      normalX = normalX / normalLength;
-      normalY = normalY / normalLength;
-      return { x: normalX, y: normalY };
-    }
-  };
-
-  // src/line.ts
-  var Line = class extends Ray {
-    constructor(ctx2, p1, p2, currentColor = "black") {
-      super(p1, p2);
-      this.ctx = ctx2;
-      this.currentColor = currentColor;
-      this.update();
-    }
-    draw() {
-      this.ctx.beginPath();
-      this.ctx.moveTo(this.p1.x, this.p1.y);
-      this.ctx.lineTo(this.p2.x, this.p2.y);
-      this.ctx.stroke();
-      this.ctx.closePath();
-    }
-    update() {
-      this.ctx.strokeStyle = this.currentColor;
-      this.draw();
-    }
-    updatePosition(p1, p2) {
-      this.p1 = p1;
-      this.p2 = p2;
-    }
-    checkInside() {
-      return null;
     }
   };
 
@@ -139,10 +72,81 @@
   var toDeg = (radians) => {
     return radians * 180 / Math.PI;
   };
+  var getAngle = (p1, p2) => {
+    let a = p2.x - p1.x;
+    let b = p2.y - p1.y;
+    let radians = Math.atan2(b, a);
+    return radians;
+  };
+
+  // src/ray.ts
+  var Ray = class {
+    constructor(p1, p2) {
+      this.p1 = { x: 0, y: 0 };
+      this.p2 = { x: 0, y: 0 };
+      this.angle = 0;
+      this.rayExtension = (distance2 = 1500) => {
+        let normal = this.normalize();
+        let xPos = this.p2.x + distance2 * normal.x;
+        let yPos = this.p2.y + distance2 * normal.y;
+        this.p2 = { x: xPos, y: yPos };
+      };
+      this.getRayAngle = () => {
+        return getAngle(this.p1, this.p2);
+      };
+      this.p1 = p1 === void 0 ? this.p1 : p1;
+      this.p2 = p2 === void 0 ? this.p2 : p2;
+    }
+    distance() {
+      return Math.sqrt((this.p2.x - this.p1.x) ** 2 + (this.p2.y - this.p1.y) ** 2);
+    }
+    slope() {
+      if (this.p1.x - this.p2.x != 0) {
+        return (this.p2.y - this.p1.y) / (this.p2.x - this.p1.x);
+      }
+      return Number.MAX_VALUE;
+    }
+    normalize() {
+      let normalX = this.p2.x - this.p1.x;
+      let normalY = this.p2.y - this.p1.y;
+      let normalLength = this.distance();
+      normalX = normalX / normalLength;
+      normalY = normalY / normalLength;
+      return { x: normalX, y: normalY };
+    }
+  };
+
+  // src/line.ts
+  var Line = class extends Ray {
+    constructor(ctx2, p1, p2, currentColor = "black") {
+      super(p1, p2);
+      this.ctx = ctx2;
+      this.currentColor = currentColor;
+      this.update();
+    }
+    draw() {
+      this.ctx.beginPath();
+      this.ctx.moveTo(this.p1.x, this.p1.y);
+      this.ctx.lineTo(this.p2.x, this.p2.y);
+      this.ctx.closePath();
+      this.ctx.stroke();
+    }
+    update() {
+      this.ctx.strokeStyle = this.currentColor;
+      this.draw();
+    }
+    updatePosition(p1, p2) {
+      this.p1 = p1;
+      this.p2 = p2;
+    }
+    checkInside() {
+      return null;
+    }
+  };
 
   // src/polygon.ts
   var Polygon = class {
-    constructor(ctx2, sides = 3, position, radius, strokeColor = "cyan") {
+    constructor(ctx2, sides = 3, position, radius = 10, strokeColor = "cyan") {
       this.sides = 3;
       this.angle = 0;
       // In degrees
@@ -150,24 +154,16 @@
       this.lines = [];
       this.rotPos = [];
       this.vertices = [];
-      this.position = { x: 0, y: 0 };
       this.fillColor = "rgba(0,0,0,0)";
       this.strokeColor = "rgba(0,0,0,0)";
+      this.position = { x: 0, y: 0 };
       this.ctx = ctx2;
       this.position = position;
       this.strokeColor = strokeColor;
       this.sides = sides;
-      if (radius)
-        this.radius = radius;
+      this.radius = radius;
       this.createPoints();
       this.position = this.getCenterPosition();
-      this.centerCircle = new Circle(
-        ctx2,
-        5,
-        this.position.x,
-        this.position.y,
-        "red"
-      );
       this.update();
     }
     draw(vertices) {
@@ -179,8 +175,6 @@
         let pos = vertices[i];
         this.ctx.lineTo(pos.x, pos.y);
       }
-      this.ctx.moveTo(this.position.x, this.position.y);
-      this.ctx.lineTo(vertices[0].x, vertices[0].y);
       this.ctx.closePath();
       this.ctx.stroke();
     }
@@ -194,12 +188,12 @@
     }
     getLines() {
       let lines = [];
-      let p1 = this.vertices[0];
-      let p2 = this.vertices[this.vertices.length - 1];
+      let p1 = this.rotPos[0];
+      let p2 = this.rotPos[this.rotPos.length - 1];
       lines.push(new Ray(p1, p2));
-      for (let i = 0; i < this.vertices.length - 1; i++) {
-        p1 = this.vertices[i];
-        p2 = this.vertices[i + 1];
+      for (let i = 0; i < this.rotPos.length - 1; i++) {
+        p1 = this.rotPos[i];
+        p2 = this.rotPos[i + 1];
         let line = new Ray(p1, p2);
         lines.push(line);
       }
@@ -222,8 +216,6 @@
     update() {
       this.position = this.getCenterPosition();
       this.rotate();
-      this.centerCircle.update();
-      this.centerCircle.updatePosition(this.position.x, this.position.y);
     }
     getCenterPosition() {
       if (this.sides == 3) {
@@ -270,75 +262,18 @@
     }
   };
 
-  // src/ship.ts
-  var Ship = class extends Polygon {
-    constructor(ctx2, position = { x: 0, y: 0 }, sides = 3, radius = 10) {
-      super(ctx2, sides, position, radius, "cyan");
-      this.mass = 1;
-      this.speed = 0;
-      this.maxSpeed = 3;
-      this.lookAtAngle = 0;
-      this.turnSpeed = 0.4;
-      this.vertsPos = [];
-      this.velocity = { x: 0, y: 0 };
-      this.force = { x: 0, y: 0 };
-    }
-    lookAt(trackPoint) {
-      let pointerRay = new Ray(this.position, trackPoint);
-      let angle = toDeg(pointerRay.getAngle());
-      this.angle = angle;
-    }
-    move(keys2) {
-      if (keys2.w.pressed) {
-        for (let i = 0; i < this.vertices.length; i++) {
-          if (this.speed <= 10) {
-            this.speed += 1e-3;
-          }
-        }
-      }
-      if (keys2.s.pressed) {
-        for (let i = 0; i < this.vertices.length; i++) {
-          if (this.speed >= -1) {
-            this.speed -= 1e-3;
-          }
-        }
-      }
-      if (keys2.a.pressed) {
-        for (let i = 0; i < this.vertices.length; i++) {
-          this.angle -= this.turnSpeed * 0.7;
-        }
-      }
-      if (keys2.d.pressed) {
-        for (let i = 0; i < this.vertices.length; i++) {
-          this.angle += this.turnSpeed * 0.7;
-        }
-      }
-    }
-    updateSimulation(deltaTime2) {
-      let posX = Math.cos(toRad(this.angle)) * this.speed + this.position.x;
-      let posY = Math.sin(toRad(this.angle)) * this.speed + this.position.y;
-      let forceVector = new Ray(this.position, { x: posX, y: posY });
-      let xSpeed = (forceVector.p2.x - forceVector.p1.x) / this.mass;
-      let ySpeed = (forceVector.p2.y - forceVector.p1.y) / this.mass;
-      this.velocity.x += xSpeed;
-      this.velocity.y += ySpeed;
-      for (let i = 0; i < this.vertices.length; i++) {
-        this.vertices[i].x += this.velocity.x * deltaTime2;
-        this.vertices[i].y += this.velocity.y * deltaTime2;
-      }
-    }
-  };
-
   // src/lights/directional_light.ts
   var DirectLight = class {
-    constructor(ctx2, walls, position = { x: 0, y: 0 }, startAngle = 0, endAngle = 1, lightColor = "cyan", increment = 0.1) {
-      this.rays = [];
-      this.sceneWalls = [];
-      this.startAngle = 0;
+    constructor(ctx2, walls, position = { x: 0, y: 0 }, startAngle = 0, endAngle = 1, lightColor = "cyan", increment = 0.1, rayLength = 500) {
       this.endAngle = 1;
-      this.lightColor = "cyan";
-      this.position = { x: 0, y: 0 };
+      this.startAngle = 0;
       this.increment = 0.1;
+      this.rayLength = 500;
+      this.rays = [];
+      this.lightColor = "cyan";
+      this.rotRays = [];
+      this.sceneWalls = [];
+      this.position = { x: 0, y: 0 };
       this.findClosest = (walls, rays) => {
         rays = rays === void 0 ? this.rays : rays;
         let intersects = [];
@@ -357,6 +292,8 @@
           }
           if (closest) {
             intersects.push(closest);
+          } else {
+            intersects.push(ray.p2);
           }
         }
         return intersects;
@@ -367,6 +304,7 @@
       this.position = position;
       this.lightColor = lightColor;
       this.increment = increment;
+      this.rayLength = rayLength;
       this.createRays(position);
       this.getSceneWalls(walls);
     }
@@ -395,14 +333,21 @@
           x: posX,
           y: posY
         });
-        ray.rayExtension();
+        ray.rayExtension(this.rayLength);
         this.rays.push(ray);
       }
     }
-    updatePosition(sourcePoint, point) {
+    updatePosition(sourcePoint) {
+      this.position = sourcePoint;
       for (let i = 0; i < this.rays.length; i++) {
+        let distance2 = this.rays[i].distance();
+        let normal = this.rays[i].normalize();
+        let pos = {
+          x: sourcePoint.x + distance2 * normal.x,
+          y: sourcePoint.y + distance2 * normal.y
+        };
         this.rays[i].p1 = sourcePoint;
-        this.rays[i].p2 = point[i];
+        this.rays[i].p2 = pos;
       }
     }
     calcIntersects(position, rays) {
@@ -420,7 +365,7 @@
       let angles = [];
       this.ctx.fillStyle = this.lightColor;
       for (let line of lines) {
-        angles.push({ line, angle: line.getAngle() });
+        angles.push({ line, angle: line.getRayAngle() });
       }
       this.ctx.beginPath();
       this.ctx.moveTo(angles[0].line.p2.x, angles[0].line.p2.y);
@@ -437,6 +382,122 @@
       );
       this.ctx.closePath();
       this.ctx.fill();
+    }
+    rotate(angle = 0) {
+      this.rotRays = [];
+      for (let ray of this.rays) {
+        if (ray) {
+          let pos = { x: ray.p2.x - ray.p1.x, y: ray.p2.y - ray.p1.y };
+          let xPrime = pos.x * Math.cos(toRad(angle)) - pos.y * Math.sin(toRad(angle));
+          let yPrime = pos.y * Math.cos(toRad(angle)) + pos.x * Math.sin(toRad(angle));
+          let rotationalRay = new Ray(ray.p1, { x: xPrime + ray.p1.x, y: yPrime + ray.p1.y });
+          this.rotRays.push(rotationalRay);
+        }
+      }
+      this.calcIntersects(this.position, this.rotRays);
+    }
+    lookAt(trackPoint) {
+      let trackAngle = getAngle(this.position, trackPoint);
+      this.rotate(toDeg(trackAngle));
+    }
+  };
+
+  // src/ship.ts
+  var Ship = class extends Polygon {
+    constructor(ctx2, walls, position = { x: 0, y: 0 }, sides = 3, radius = 10, shipColor = "cyan", playerControlled = false) {
+      super(ctx2, sides, position, radius, shipColor);
+      this.mass = 1;
+      this.speed = 0;
+      this.maxSpeed = 10;
+      this.turnSpeed = 0.4;
+      this.shipColor = "cyan";
+      this.playerControlled = false;
+      this.velocity = { x: 0, y: 0 };
+      this.force = { x: 0, y: 0 };
+      this.centerCircle = new Circle(
+        ctx2,
+        this.radius / 5,
+        this.position.x,
+        this.position.y,
+        "red"
+      );
+      this.playerControlled = playerControlled;
+      if (walls) {
+        this.shipLight = new DirectLight(ctx2, walls, this.position, -45, 45, "cyan", 0.1, 500);
+      } else {
+        this.shipLight = null;
+      }
+    }
+    lookAt(trackPoint) {
+      let pointerRay = new Ray(this.position, trackPoint);
+      let angle = toDeg(pointerRay.getRayAngle());
+      this.angle = angle;
+    }
+    move(keys2) {
+      if (keys2.w.pressed) {
+        for (let i = 0; i < this.vertices.length; i++) {
+          if (this.speed <= this.maxSpeed) {
+            this.speed += 1e-3;
+          }
+        }
+      }
+      if (keys2.s.pressed) {
+        for (let i = 0; i < this.vertices.length; i++) {
+          if (this.speed >= -1) {
+            this.speed -= 1e-3;
+          }
+        }
+      }
+      if (keys2.a.pressed) {
+        for (let i = 0; i < this.vertices.length; i++) {
+          this.angle -= this.turnSpeed * 0.7;
+        }
+      }
+      if (keys2.d.pressed) {
+        for (let i = 0; i < this.vertices.length; i++) {
+          this.angle += this.turnSpeed * 0.7;
+        }
+      }
+    }
+    updateSimulation(deltaTime2 = 1e-3, cameraOffset) {
+      let posX = Math.cos(toRad(this.angle)) * this.speed + this.position.x;
+      let posY = Math.sin(toRad(this.angle)) * this.speed + this.position.y;
+      let forceVector = new Ray(this.position, { x: posX, y: posY });
+      let xSpeed = (forceVector.p2.x - forceVector.p1.x) / this.mass;
+      let ySpeed = (forceVector.p2.y - forceVector.p1.y) / this.mass;
+      this.velocity.x += xSpeed;
+      this.velocity.y += ySpeed;
+      let vt = { x: this.velocity.x * deltaTime2, y: this.velocity.y * deltaTime2 };
+      for (let i = 0; i < this.vertices.length; i++) {
+        this.vertices[i].x += vt.x;
+        this.vertices[i].y += vt.y;
+        this.rotPos[i].x += vt.x;
+        this.rotPos[i].y += vt.y;
+      }
+      let center = this.getCenterPosition();
+      this.centerCircle.update();
+      if (this.playerControlled) {
+        this.centerCircle.updatePosition(this.position.x + cameraOffset.x, this.position.y + cameraOffset.y);
+      } else {
+        this.centerCircle.updatePosition(center.x + vt.x, center.y + vt.y);
+      }
+    }
+    drawShipLight(walls) {
+      var _a, _b, _c;
+      (_a = this.shipLight) == null ? void 0 : _a.updatePosition(
+        {
+          x: this.rotPos[0].x,
+          y: this.rotPos[0].y
+        }
+      );
+      (_b = this.shipLight) == null ? void 0 : _b.updateWalls(walls);
+      (_c = this.shipLight) == null ? void 0 : _c.rotate(this.angle);
+    }
+    translateCamera(camera2) {
+      camera2.updatePosition({
+        x: -this.position.x + this.ctx.canvas.width / 2 + this.velocity.x * 1e-3,
+        y: -this.position.y + this.ctx.canvas.height / 2 + this.velocity.y * 1e-3
+      });
     }
   };
 
@@ -474,7 +535,7 @@
         let pos = this.uniquePoints[i];
         let ray = new Ray(position, pos);
         let magnitude = ray.distance();
-        let angle = ray.getAngle();
+        let angle = ray.getRayAngle();
         let leftRayEnd = {
           x: magnitude * Math.cos(angle - 1e-5) + position.x,
           y: magnitude * Math.sin(angle - 1e-5) + position.y
@@ -494,7 +555,7 @@
       let angles = [];
       this.ctx.fillStyle = this.lightColor;
       for (let line of lines) {
-        angles.push({ line, angle: line.getAngle() });
+        angles.push({ line, angle: line.getRayAngle() });
       }
       angles = angles.sort((a, b) => {
         return a.angle - b.angle;
@@ -519,37 +580,27 @@
     }
   };
 
-  // src/lights/tracking_light.ts
-  var TrackLight = class extends DirectLight {
-    constructor(ctx2, walls, position = { x: 0, y: 0 }, startAngle = 0, endAngle = 2) {
-      super(ctx2, walls, position, startAngle, endAngle);
-      this.rays = [];
-      this.ctx = ctx2;
-      this.position = position;
-      this.createRays(position);
+  // src/camera.ts
+  var Rectangle = class {
+    constructor(startPoint, width, height) {
+      this.topLeftPos = { x: 0, y: 0 };
+      this.topRightPos = { x: 0, y: 0 };
+      this.bottomRightPos = { x: 0, y: 0 };
+      this.bottomLeftPos = { x: 0, y: 0 };
+      this.width = 0;
+      this.height = 0;
+      this.topLeftPos = startPoint;
+      this.topRightPos = { x: startPoint.x + width, y: startPoint.y };
+      this.bottomRightPos = { x: startPoint.x + width, y: startPoint.y + height };
+      this.bottomLeftPos = { x: startPoint.x, y: startPoint.y + height };
+      this.width = width;
+      this.height = height;
     }
-    lookAt(walls, startPoint, trackPoint) {
-      let pointerRay = new Ray(startPoint, trackPoint);
-      let rayPos = [];
-      let trackRays = [];
-      let offset = this.endAngle / 2;
-      for (let ray of this.rays) {
-        if (ray) {
-          let angle = toDeg(pointerRay.getAngle());
-          let pos = { x: ray.p2.x - ray.p1.x, y: ray.p2.y - ray.p1.y };
-          let xPrime = pos.x * Math.cos(toRad(angle - offset)) - pos.y * Math.sin(toRad(angle - offset));
-          let yPrime = pos.y * Math.cos(toRad(angle - offset)) + pos.x * Math.sin(toRad(angle - offset));
-          rayPos.push({ x: xPrime + ray.p1.x, y: yPrime + ray.p1.y });
-        }
-      }
-      for (let i = 0; i < rayPos.length; i++) {
-        if (rayPos[i]) {
-          let ray = new Ray(startPoint, rayPos[i]);
-          trackRays.push(ray);
-        }
-      }
-      this.updateWalls(walls);
-      this.calcIntersects(startPoint, trackRays);
+    updatePosition(startPoint) {
+      this.topLeftPos = startPoint;
+      this.topRightPos = { x: startPoint.x + this.width, y: startPoint.y };
+      this.bottomRightPos = { x: startPoint.x + this.width, y: startPoint.y + this.height };
+      this.bottomLeftPos = { x: startPoint.x, y: startPoint.y + this.height };
     }
   };
 
@@ -560,10 +611,14 @@
   var ctx = canvas.getContext("2d");
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
-  ctx.imageSmoothingEnabled = true;
-  ctx.imageSmoothingQuality = "high";
+  var camera = new Rectangle({ x: 0, y: 0 }, canvas.width, canvas.height);
+  var archer = new Ship(ctx, void 0, { x: 120, y: 330 }, 3, 12, "red");
   var polygons = [
-    new Ship(ctx, { x: 350, y: 150 }, 3, 50),
+    new Ship(ctx, void 0, { x: 121, y: 330 }, 3, 12, "magenta"),
+    new Ship(ctx, void 0, { x: 122, y: 330 }, 3, 12, "yellow"),
+    new Ship(ctx, void 0, { x: 123, y: 330 }, 3, 12, "blue"),
+    new Ship(ctx, void 0, { x: 124, y: 330 }, 3, 12, "green"),
+    new Ship(ctx, void 0, { x: 125, y: 330 }, 3, 12, "orange"),
     new Polygon(ctx, 3, { x: 300, y: 400 }, 40),
     new Polygon(ctx, 4, { x: 700, y: 100 }, 60),
     new Polygon(ctx, 5, { x: 800, y: 600 }, 80),
@@ -572,6 +627,7 @@
     new Polygon(ctx, 7, { x: 1300, y: 300 }, 80),
     new Polygon(ctx, 4, { x: 110, y: 150 }, 100),
     new Polygon(ctx, 4, { x: 900, y: 500 }, 200),
+    new Polygon(ctx, 5, { x: 2e3, y: 500 }, 200),
     new Line(ctx, { x: 0, y: 0 }, { x: canvas.width, y: 0 }, "black"),
     new Line(ctx, { x: 0, y: 0 }, { x: 0, y: canvas.height }, "black"),
     new Line(
@@ -587,14 +643,15 @@
       "black"
     )
   ];
+  var ship = new Ship(ctx, polygons, { x: canvas.width / 2, y: canvas.height / 2 }, 3, 50, void 0, true);
   var circle = new Circle(ctx, 15, canvas.width / 2, canvas.height / 2, "gray");
   var Collections = [];
+  polygons.push(archer);
   Collections.push(...polygons);
   Collections.push(circle);
   var circlePointer = { x: circle.x, y: circle.y };
   var pointLight = new PointLight(ctx, polygons, circlePointer);
-  var directLight = new DirectLight(ctx, polygons, circlePointer, 0, 30);
-  var trackLight = new TrackLight(ctx, polygons, circlePointer, 0, 30);
+  var directLight = new DirectLight(ctx, polygons, circlePointer, -30, 30);
   var mousePointer = { x: 0, y: 0 };
   var checkHit = (scanRay) => {
     for (let entity of Collections) {
@@ -605,8 +662,14 @@
   };
   var drag = (event) => {
     let scanRay = new Ray(
-      { x: event.offsetX, y: event.offsetY },
-      { x: event.offsetX + 10, y: event.offsetY }
+      {
+        x: event.offsetX - camera.topLeftPos.x,
+        y: event.offsetY - camera.topLeftPos.y
+      },
+      {
+        x: event.offsetX + 10 - camera.topLeftPos.x,
+        y: event.offsetY - camera.topLeftPos.y
+      }
     );
     let initialPoint = { x: event.offsetX, y: event.offsetY };
     let initialPosition;
@@ -627,13 +690,6 @@
         x: initialPoint.x - initialEntity.x,
         y: initialPoint.y - initialEntity.y
       };
-      for (let ray of trackLight.rays) {
-        initialPosition = {
-          x: initialPoint.x - ray.p2.x,
-          y: initialPoint.y - ray.p2.y
-        };
-        initialPositions.push(initialPosition);
-      }
     }
     const move = (event2) => {
       let offsetX = event2.offsetX;
@@ -648,10 +704,6 @@
         let posX = offsetX - initialCirclePosition.x;
         let posY = offsetY - initialCirclePosition.y;
         initialEntity.updatePosition(posX, posY);
-        for (let position of initialPositions) {
-          translate.push({ x: offsetX - position.x, y: offsetY - position.y });
-        }
-        trackLight.updatePosition({ x: posX, y: posY }, translate);
       }
     };
     canvas.addEventListener("mousemove", move);
@@ -661,10 +713,11 @@
     };
   };
   var draw = () => {
-    circle.update();
+    ship.update();
     for (let polygon of polygons) {
       polygon.update();
     }
+    circle.update();
   };
   var frameTime = 0;
   var lastLoop = performance.now();
@@ -678,7 +731,6 @@
     ctx.font = "normal 28px Arial";
     ctx.fillText(frames, canvas.width - 140, 40);
   };
-  var ship = polygons[0];
   var start;
   var deltaTime = 1e-3;
   var update = (timestamp) => {
@@ -688,10 +740,21 @@
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    let mouseCamOffset = { x: mousePointer.x - camera.topLeftPos.x, y: mousePointer.y - camera.topLeftPos.y };
     displayFPS();
     ship.move(keys);
-    ship.lookAt(mousePointer);
-    ship.updateSimulation(deltaTime);
+    ship.lookAt(mouseCamOffset);
+    ship.updateSimulation(deltaTime, camera.topLeftPos);
+    ship.translateCamera(camera);
+    ctx.translate(camera.topLeftPos.x, camera.topLeftPos.y);
+    for (let poly of polygons) {
+      if (poly instanceof Ship) {
+        poly.updateSimulation(deltaTime, camera.topLeftPos);
+        poly.speed = 10;
+        poly.lookAt(mouseCamOffset);
+      }
+    }
+    ship.drawShipLight(polygons);
     draw();
     requestAnimationFrame(update);
   };
