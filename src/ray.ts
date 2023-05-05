@@ -8,7 +8,6 @@ export interface Point {
 export class Ray {
   p1: Point = { x: 0, y: 0 };
   p2: Point = { x: 0, y: 0 };
-  angle: number = 0.0
   constructor(p1?: Point, p2?: Point) {
     this.p1 = p1 === undefined ? this.p1 : p1;
     this.p2 = p2 === undefined ? this.p2 : p2;
@@ -19,7 +18,7 @@ export class Ray {
   }
 
   slope() {
-    if (this.p1.x - this.p2.x != 0) {
+    if (this.p1.x - this.p2.x !== 0) {
       return (this.p2.y - this.p1.y) / (this.p2.x - this.p1.x);
     }
     return Number.MAX_VALUE;
@@ -36,7 +35,7 @@ export class Ray {
     return { x: normalX, y: normalY };
   }
 
-  rayExtension = (distance:number = 1500) => {
+  rayExtension (distance:number = 1500) {
     let normal = this.normalize();
 
     let xPos = this.p2.x + distance * normal.x;
@@ -45,7 +44,19 @@ export class Ray {
     this.p2 = { x: xPos, y: yPos };
   };
 
-  getRayAngle = () => {
+  getRayAngle () {
     return getAngle (this.p1, this.p2)
+  }
+
+  getXComponent () {
+    return this.p2.x - this.p1.x
+  }
+
+  getYComponent () {
+    return this.p2.y - this.p1.y
+  }
+
+  getXYComponents () {
+    return {x: this.p2.x - this.p1.x, y: this.p2.y - this.p1.y}
   }
 }

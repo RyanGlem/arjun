@@ -17,7 +17,6 @@ export class DirectLight {
   
   constructor(
     ctx: CanvasRenderingContext2D,
-    walls: (Ray | Polygon)[],
     position: Point = { x: 0, y: 0 },
     startAngle = 0,
     endAngle = 1,
@@ -36,24 +35,6 @@ export class DirectLight {
     this.drawExtenders = drawExtenders
 
     this.createRays(position);
-    this.getSceneWalls(walls);
-  }
-
-  getSceneWalls(walls: (Ray | Polygon)[]) {
-    let sceneWalls: Ray[] = [];
-    for (let wall of walls) {
-      if (wall instanceof Polygon) {
-        let rays = wall.getLines();
-        sceneWalls.push(...rays);
-      } else {
-        sceneWalls.push(wall);
-      }
-    }
-    this.sceneWalls = sceneWalls;
-  }
-
-  updateWalls(walls: (Ray | Polygon)[]) {
-    this.getSceneWalls(walls);
   }
 
   // Create rays between a starting angle and ending angle
@@ -88,13 +69,13 @@ export class DirectLight {
     }
   }
 
-  calcIntersects(position?: Point, rays?: Ray[]) {
+  calcIntersects(walls:Ray[], position?: Point, rays?: Ray[]) {
     position = position === undefined ? this.position : position;
     rays = rays === undefined ? this.rays : rays;
     
     let sightLines: Ray[] = [];
 
-    let intersects = this.findClosest(this.sceneWalls, rays);
+    let intersects = this.findClosest(walls, rays);
     for (let intersect of intersects) {
       let line = new Ray(position, intersect);
       sightLines.push(line);
@@ -153,7 +134,7 @@ export class DirectLight {
     return intersects;
   };
 
-  rotate(angle = 0) {
+  rotate(walls : Ray[], angle = 0) {
     this.rotRays = []
 
     for (let ray of this.rays) {
@@ -169,11 +150,11 @@ export class DirectLight {
         this.rotRays.push(rotationalRay);
       }
     }
-    this.calcIntersects(this.position, this.rotRays)
+    this.calcIntersects(walls, this.position, this.rotRays)
   }
 
-  lookAt (trackPoint : Point) {
+  lookAt (walls: Ray[], trackPoint : Point) {
     let trackAngle = getAngle(this.position, trackPoint)
-    this.rotate(toDeg(trackAngle))
+    this.rotate(walls, toDeg(trackAngle))
   }
 }

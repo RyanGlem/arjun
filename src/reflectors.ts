@@ -1,46 +1,36 @@
-import { Line } from "./line";
 import { Ray, Point } from "./ray";
 import { distance, checkLineCollision } from "./linear_operations";
+import { Polygon } from "./polygon";
 
 const MAX_RAYS = 10;
 
 export class Reflectors {
-  rays: Line[] = [];
-  ctx: CanvasRenderingContext2D;
   starter: Ray;
+  strokeColor = "red"
+  reflectorRays : Ray[] = []
+  ctx: CanvasRenderingContext2D;
 
   constructor(
     ctx: CanvasRenderingContext2D,
     starter = new Ray(
       { x: 0, y: 0 },
-      { x: ctx.canvas.width, y: ctx.canvas.height },
-    )
+      { x: 0, y: 0 },
+    ),
+    strokeColor = "red"
   ) {
     this.ctx = ctx;
-    let p1: Point = { x: 0, y: 0 };
-    let p2: Point = { x: 0, y: 0 };
-
     this.starter = starter;
-
-    for (let i = 0; i < MAX_RAYS; i++) {
-      this.rays[i] = new Line(ctx, p1, p2, "red");
-    }
-    this.update();
-  }
-
-  update() {
-    for (let ray of this.rays) {
-      ray.update();
-    }
+    this.strokeColor = strokeColor;
   }
 
   // Calculates the number of possible hits for reflections
-  calculateHits(walls: Line[], ray?: Ray) {
-    ray = ray === undefined ? this.rays[0] : ray;
-    let starterRay = new Ray(ray.p1, ray.p2);
+  calculateHits(walls: Ray[], ray?: Ray) {
+    ray = ray === undefined ? new Ray() : ray;
+    let starterRay = ray
     let reflectorRay = new Ray();
-
-    let hit = this.findClosest(walls, starterRay);
+    
+    //this.getSceneWalls(walls)
+    let hit = this.findClosest(walls, this.starter);
     let prevHit = hit;
     let nextHit = null;
     let rays: Ray[] = [];
@@ -52,7 +42,6 @@ export class Reflectors {
         let closestWall = prevHit[1] as Ray;
 
         if (closestHit) {
-
           if (rays.length === 0) {
             starterRay.p2 = closestHit;
             rays.push(starterRay);
@@ -75,27 +64,32 @@ export class Reflectors {
         prevHit = nextHit;
       }
       rays.push (reflectorRay)
+    } else if (rays.length === 0) {
+      rays.push(this.starter)
     }
+    this.reflectorRays = rays
     this.drawReflections(rays);
   }
 
   private drawReflections(rays: Ray[]) {
-    this.freeReflectors()
+    this.ctx.beginPath()
+    this.ctx.strokeStyle = this.strokeColor
+    let start = rays[0].p1
+    let end = rays[0].p2
+    this.ctx.moveTo(start.x, start.y)
+    this.ctx.lineTo(end.x, end.y)
     for (let i = 1; i < rays.length; i++) {
-      this.rays[i].p1 = rays[i].p1;
-      this.rays[i].p2 = rays[i].p2;
+      start = rays[i].p1
+      end = rays[i].p2
+      this.ctx.moveTo(start.x, start.y)
+      this.ctx.lineTo(end.x, end.y)
     }
+
+    this.ctx.closePath()
+    this.ctx.stroke()
   }
 
-  freeReflectors = () => {
-    for (let i = 0; i < MAX_RAYS; i++) {
-      let pt: Point = { x: 0, y: 0 };
-      this.rays[i].p1 = pt;
-      this.rays[i].p2 = pt;
-    }
-  };
-
-  findClosest = (walls: Line[], ray: Ray) => {
+  findClosest (walls: Ray[], ray: Ray) {
     let closest = null;
     let closestWall = null;
     let max = Number.MAX_VALUE;

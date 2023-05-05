@@ -1,19 +1,13 @@
-import { Polygon } from "../polygon";
 import { DirectLight } from "./directional_light";
 import { Point, Ray } from "../ray";
 
 export class PointLight extends DirectLight {
   uniquePoints: Point[] = []
 
-  constructor(ctx: CanvasRenderingContext2D, walls: (Ray | Polygon)[], center = { x: 0, y: 0 }, ) {
-    super(ctx, walls, center, 0, 360, "cyan", 1, 1500, false)
+  constructor(ctx: CanvasRenderingContext2D, center = { x: 0, y: 0 }, lightColor = "cyan") {
+    super(ctx, center, 0, 360, lightColor, 1, 1500, true)
     this.ctx = ctx;
     this.position = center;
-    
-    this.getSceneWalls(walls)
-    this.getUniquePoints()
-    this.getUniqueRays(center)
-    this.createRays(center)
   }
 
   getUniqueRays (position : Point) {
@@ -65,19 +59,19 @@ export class PointLight extends DirectLight {
   }
 
   // If the walls are moving we have to get the new vertex positions and rebuild all the rays
-  updateRays(walls: (Ray | Polygon)[], position?: Point) {
+  // Incorrect, this should be renamed calculate hits.
+  calculateHits(walls: Ray [], position?: Point) {
     position = position === undefined ? this.position : position
     this.rays = []
-    this.updateWalls(walls)
-    this.getUniquePoints()
+    this.getUniquePoints(walls)
     this.getUniqueRays(position)
     this.createRays(position)
-    this.calcIntersects(position)
+    this.calcIntersects(walls)
   }
 
-  getUniquePoints = () => {
+  getUniquePoints = (walls: Ray[]) => {
     let pts: Point[] = [];
-    this.sceneWalls.forEach((wall) => {
+    walls.forEach((wall) => {
       pts.push(wall.p1, wall.p2);
     });
 

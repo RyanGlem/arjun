@@ -1,10 +1,12 @@
-import { Circle } from "./circle";
 import { Ship } from "./ship";
-import { Polygon } from "./polygon";
 import { Ray, Point } from "./ray";
+import { Polygon } from "./polygon";
+import { Rectangle } from "./camera";
+import { RenderCircle } from "./circle";
+import { Laser } from "./projectiles/laser";
+import { Shell } from "./projectiles/shell";
 import { PointLight } from "./lights/point_light";
 import { DirectLight } from "./lights/directional_light";
-import { Rectangle } from "./camera";
 
 const canvas: HTMLCanvasElement = document.getElementById(
   "container"
@@ -23,45 +25,74 @@ let getRandY = () => {
   return Math.floor(Math.random() * canvas.height);
 };
 
-const archer = new Ship(ctx, undefined, { x: 120, y: 330 }, 3, 12, "red");
 let polygons = [
-  new Ship(ctx, undefined, { x: 121, y: 330 }, 3, 12, "magenta"),
-  new Ship(ctx, undefined, { x: 122, y: 330 }, 3, 12, "yellow"),
-  new Ship(ctx, undefined, { x: 123, y: 330 }, 3, 12, "blue"),
-  new Ship(ctx, undefined, { x: 124, y: 330 }, 3, 12, "green"),
-  new Ship(ctx, undefined, { x: 125, y: 330 }, 3, 12, "orange"),
+  new Ship(ctx, undefined, { x: 120, y: 330 }, 2, 3, 25, "red"),
+  new Ship(ctx, undefined, { x: 121, y: 330 }, 5, 3, 12, "magenta"),
+  new Ship(ctx, undefined, { x: 122, y: 330 }, 3, 3, 12, "yellow"),
+  new Ship(ctx, undefined, { x: 123, y: 330 }, 2.5, 3, 20, "blue"),
+  new Ship(ctx, undefined, { x: 124, y: 330 }, 1, 3, 11, "green"),
+  new Ship(ctx, undefined, { x: 125, y: 330 }, 8, 3, 8, "orange"),
   new Polygon(ctx, 3, { x: 300, y: 400 }, 40),
   new Polygon(ctx, 4, { x: 700, y: 100 }, 60),
   new Polygon(ctx, 5, { x: 800, y: 600 }, 80),
-  new Polygon(ctx, 3, { x: canvas.width / 2, y: canvas.height / 2 }, 100),
   new Polygon(ctx, 5, { x: 100, y: 650 }, 100),
   new Polygon(ctx, 7, { x: 1300, y: 300 }, 80),
   new Polygon(ctx, 4, { x: 110, y: 150 }, 100),
   new Polygon(ctx, 4, { x: 900, y: 500 }, 200),
   new Polygon(ctx, 5, { x: 2000, y: 500 }, 200),
 ];
+
+const getWalls = (sceneWalls: (Polygon | Ray)[]) => {
+  let walls: Ray[] = [];
+  for (let wall of sceneWalls) {
+    if (wall instanceof Polygon) {
+      let rays = wall.getLines();
+      walls.push(...rays);
+    } else {
+      walls.push(wall);
+    }
+  }
+  return walls;
+};
+
+const shipArray : Ship[] = []
+const getShips = () => {
+  for (let poly of polygons) {
+    if (poly instanceof Ship) {
+      shipArray.push(poly)
+    }
+  }
+
+  return shipArray
+}
+getShips()
+
 const ship = new Ship(
   ctx,
-  polygons,
+  true,
   { x: canvas.width / 2, y: canvas.height / 2 },
+  1,
   3,
   50,
   undefined,
   true
 );
-const circle = new Circle(ctx, 15, canvas.width / 2, canvas.height / 2, "gray");
-const Collections: any[] = [];
-polygons.push(archer);
-Collections.push(...polygons);
-Collections.push(circle);
+const renderCircle = new RenderCircle(ctx, 15, canvas.width / 2, canvas.height / 2, "gray");
 
-let circlePointer: Point = { x: circle.x, y: circle.y };
+const Collections: any[] = [];
+Collections.push(...polygons);
+Collections.push(renderCircle);
+
+let circlePointer: Point = { x: renderCircle.circle.x, y: renderCircle.circle.y };
 
 // Lights
-const pointLight = new PointLight(ctx, polygons, circlePointer);
-const directLight = new DirectLight(ctx, polygons, circlePointer, -30, 30);
+const pointLight = new PointLight(ctx, circlePointer, "rgba(0,255,255,0.5)");
+const directLight = new DirectLight(ctx, circlePointer, -30, 30);
 let mousePointer: Point = { x: 0, y: 0 };
-//const reflectors = new Reflectors(ctx, ray);
+
+let startRay = new Ray({ x: 0, y: 0 }, { x: 1400, y: 1440 });
+//const reflectors = new Reflectors(ctx, startRay, polygons);
+const laser = new Laser(ctx, startRay);
 
 const checkHit = (scanRay: Ray) => {
   for (let entity of Collections) {
@@ -99,10 +130,10 @@ const drag = (event: MouseEvent) => {
       };
       initialPositions.push(initialPosition);
     }
-  } else if (initialEntity instanceof Circle) {
+  } else if (initialEntity instanceof RenderCircle) {
     initialCirclePosition = {
-      x: initialPoint.x - initialEntity.x,
-      y: initialPoint.y - initialEntity.y,
+      x: initialPoint.x - initialEntity.circle.x,
+      y: initialPoint.y - initialEntity.circle.y,
     };
   }
 
@@ -117,7 +148,7 @@ const drag = (event: MouseEvent) => {
       }
 
       initialEntity.updatePosition(translate);
-    } else if (initialEntity instanceof Circle) {
+    } else if (initialEntity instanceof RenderCircle) {
       let posX = offsetX - initialCirclePosition.x;
       let posY = offsetY - initialCirclePosition.y;
       initialEntity.updatePosition(posX, posY);
@@ -135,8 +166,9 @@ const draw = () => {
   ship.update();
   for (let polygon of polygons) {
     polygon.update();
+    polygon.checkShellHit(renderCircle.circle)
   }
-  circle.update();
+  renderCircle.update();
 };
 
 let frameTime = 0;
@@ -157,6 +189,8 @@ const displayFPS = () => {
 let start: number;
 let deltaTime: number = 0.001;
 
+let spawnedBullets : Shell [] = []
+
 // The update method is called when the browswer is ready for a repaint to redraw the screen
 const update = (timestamp: DOMHighResTimeStamp) => {
   if (!start) start = timestamp;
@@ -172,20 +206,27 @@ const update = (timestamp: DOMHighResTimeStamp) => {
   };
 
   displayFPS();
-
   ship.move(keys);
   ship.lookAt(mouseCamOffset);
   ship.updateSimulation(deltaTime, camera.topLeftPos);
   ship.translateCamera(camera);
   ctx.translate(camera.topLeftPos.x, camera.topLeftPos.y);
-  for (let poly of polygons) {
-    if (poly instanceof Ship) {
-      poly.updateSimulation(deltaTime, camera.topLeftPos);
-      poly.speed = 10;
-      poly.lookAt(mouseCamOffset);
-    }
+
+  laser.calculateHits(getWalls(polygons));
+  pointLight.calculateHits(getWalls(polygons))
+  ship.fire(mouseKey, getWalls(polygons), shipArray)
+  for (let ship of shipArray) {
+    ship.updateSimulation(deltaTime, camera.topLeftPos);
+    ship.speed = 5;
+    ship.lookAt(mouseCamOffset);
   }
-  ship.drawShipLight(polygons);
+
+  /*for (let bullet of spawnedBullets) {
+    bullet.updateSimulation(deltaTime, polygons)
+  }*/
+
+  //console.log(mousePointer)
+  //ship.drawShipLight(getWalls(polygons));
   draw();
   requestAnimationFrame(update);
 };
@@ -193,9 +234,19 @@ const update = (timestamp: DOMHighResTimeStamp) => {
 canvas.addEventListener("mousemove", (event: MouseEvent) => {
   let mouseX = event.offsetX;
   let mouseY = event.offsetY;
-  circlePointer = { x: circle.x, y: circle.y };
-  mousePointer = { x: mouseX, y: mouseY };
+  circlePointer = { x: renderCircle.circle.x, y: renderCircle.circle.y };
+  mousePointer =  { x: mouseX, y: mouseY };
 });
+
+const spawnShell = () => {
+  spawnedBullets.push(new Shell (ctx, mousePointer))
+}
+
+const mouseKey = {
+  mousedown : {
+    pressed: false,
+  },
+}
 
 const keys = {
   w: {
@@ -213,6 +264,23 @@ const keys = {
 };
 
 canvas.addEventListener("mousedown", drag);
+// canvas.addEventListener("mousedown", spawnShell);
+
+window.addEventListener ("mousedown", (mouseEvent: MouseEvent) => {
+  switch(mouseEvent.type) {
+    case "mousedown":
+      mouseKey.mousedown.pressed = true
+      break;
+  }
+})
+
+window.addEventListener ("mouseup", (mouseEvent: MouseEvent) => {
+  switch(mouseEvent.type) {
+    case "mouseup":
+      mouseKey.mousedown.pressed = false
+      break;
+  }
+})
 
 window.addEventListener("keydown", (event: KeyboardEvent) => {
   switch (event.key) {

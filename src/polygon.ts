@@ -1,4 +1,4 @@
-import { checkLineCollision, toRad} from "./linear_operations";
+import { checkLineCircleCollision, checkLineCollision, toRad} from "./linear_operations";
 import { Circle } from "./circle";
 import { Ray, Point } from "./ray";
 
@@ -22,10 +22,10 @@ export class Polygon {
     strokeColor = "cyan",  
   ) {
     this.ctx = ctx;
-    this.position = position;
-    this.strokeColor = strokeColor;
     this.sides = sides;
     this.radius = radius;
+    this.position = position;
+    this.strokeColor = strokeColor;
     this.createPoints();
     this.position = this.getCenterPosition();
     this.update();
@@ -79,6 +79,16 @@ export class Polygon {
       }
     }
     return count & 1;
+  }
+
+  checkShellHit (circle: Circle) {
+    let sides = this.getLines()
+    for (let side of sides) {
+      let intersect = checkLineCircleCollision (side, circle) as Point
+      if (intersect) {
+        return {side, intersect}
+      }
+    }
   }
 
   updatePosition(points: Point[]) {

@@ -1,5 +1,13 @@
 import { Ray, Point } from "./ray";
 
+export const drawLine = (ctx:CanvasRenderingContext2D, strokeColor = "red", p1 : Point, p2: Point) => {
+    ctx.strokeStyle = strokeColor
+    ctx.beginPath();
+    ctx.moveTo(p1.x, p1.y);
+    ctx.lineTo(p2.x, p2.y);
+    ctx.closePath()
+    ctx.stroke();
+}
 export class Line extends Ray {
   ctx: CanvasRenderingContext2D;
   currentColor: string;

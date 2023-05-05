@@ -1,8 +1,13 @@
 import { Point, Ray } from "./ray";
+import { Circle } from "./circle"
 
 export const distance = (p1: Point, p2: Point) => {
   return Math.floor(Math.sqrt((p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2));
 };
+
+export const distanceFloat = (p1: Point, p2: Point) => {
+  return Math.sqrt((p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2);
+}
 
 // Remember Line A  is checking Line B if it collides
 export const checkLineCollision = (lineA: Ray, lineB: Ray) => {
@@ -37,6 +42,72 @@ export const checkLineCollision = (lineA: Ray, lineB: Ray) => {
   }
 };
 
+export const checkCircleCollision = (circleA : Circle, circleB: Circle) => {
+  let dist = distanceFloat(circleA.center, circleB.center)
+
+  if (dist <= circleA.radius + circleB.radius) {
+    return true
+  } else {
+    return false
+  }
+}
+
+export const checkPointCircleCollision = (pt : Point, circle : Circle) => {
+  let dist = distanceFloat (circle.center, pt)
+
+  if (dist <= circle.radius) {
+    return true
+  } else {
+    return false
+  }
+}
+
+export const checkLinePointCollision = (line : Ray, point: Point) => {
+  let lineLength = line.distance()
+  let dist1 = distanceFloat(point, line.p1)
+  let dist2 = distanceFloat(point, line.p2)
+  let buffer = 0.1
+
+  if (dist1 + dist2 >= lineLength - buffer && dist1 + dist2 <= lineLength + buffer) {
+    return true
+  } else {
+    return false
+  }
+}
+
+export const checkLineCircleCollision = (line : Ray, circle : Circle) => {
+  let inside1 = checkPointCircleCollision (line.p1, circle)
+  let inside2 = checkPointCircleCollision (line.p2, circle)
+  if (inside1) return line.p1
+  if (inside2) return line.p2
+  let lineDistance = line.distance()
+  let dot = dotCircle (line, circle) / (lineDistance ** 2)
+  let p1 = line.p1
+  let p2 = line.p2
+
+  let closest = {x: p1.x + (dot * (p2.x - p1.x)), y: p1.y + (dot * (p2.y - p1.y))}
+
+  let onSegment = checkLinePointCollision(line, closest)
+  if (!onSegment) return false;
+
+  let c = circle.center
+
+  let dist = distanceFloat(c, closest)
+  if (dist <= circle.radius) {
+    return closest
+  } else {
+    return false
+  }
+}
+
+export const dotCircle = (line : Ray, circle : Circle) => {
+  let c = circle.center
+  let p1 = line.p1
+  let p2 = line.p2
+
+  return (((c.x - p1.x) * (p2.x - p1.x)) + ((c.y - p1.y) * (p2.y - p1.y)))
+
+}
 export const dot = (lineA: Ray, lineB: Ray) => {
   let aX = lineA.p2.x - lineA.p1.x;
   let aY = lineA.p2.y - lineA.p1.y;
