@@ -1,13 +1,36 @@
-import http2 from "http2";
-import fs from "fs";
+import { Server } from "colyseus"
+import { WebSocketTransport } from "@colyseus/ws-transport"
+import express from "express"
+import cors from "cors"
+import http from "http"
 
-const server = http2.createSecureServer({
+import HubRoom from "./rooms/hubRoom"
+//import http2 from "http2"; <- For HTTP2 Dev server
+//import fs from "fs";
+
+const app = express()
+const port = 80
+app.use(cors())
+app.use(express.json())
+app.use(express.static('src'))
+app.use(express.static('src/styles'))
+
+const server = http.createServer(app)
+const gameServer = new Server ({
+  transport: new WebSocketTransport({
+    server
+  })
+})
+
+gameServer.define("hub", HubRoom)
+gameServer.listen(port)
+
+/*server.on("error", (err) => console.error(err));
+
+const server = http2.createServer({
   key: fs.readFileSync("key.pem"),
   cert: fs.readFileSync("cert.pem"),
 });
-
-
-server.on("error", (err) => console.error(err));
 
 server.on("stream", (stream, headers) => {
   const path = headers[":path"];
@@ -54,7 +77,9 @@ server.on("session", (session) => {
   session.on("close", () => {
     console.log("session closed");
   });
-  session.on("error", (err) => console.error("session error", err));
+  session.on("error", (err : any) => console.error("session error", err));
 });
+*/
 
-server.listen(3000);
+
+

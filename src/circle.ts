@@ -64,6 +64,26 @@ export class RenderCircle {
     this.circle.center = {x: x, y: y}
   }
 
+  move (keys:any) {
+    if (keys.w.pressed) {
+      this.updatePosition(this.circle.x, this.circle.y -=1)
+    }
+
+    if (keys.s.pressed) {
+      this.updatePosition(this.circle.x, this.circle.y +=1)
+      
+    }
+    
+    if (keys.a.pressed) {
+      this.updatePosition(this.circle.x -=1, this.circle.y)
+
+    }
+
+    if (keys.d.pressed) {
+      this.updatePosition(this.circle.x +=1, this.circle.y)
+    }
+  }
+
   checkInside(ray: Ray) {
     if (
       (ray.p1.x - this.circle.x) ** 2 + (ray.p1.y - this.circle.y) ** 2 <=

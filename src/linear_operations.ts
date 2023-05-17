@@ -146,3 +146,10 @@ export const getAngle = (p1: Point, p2: Point) => {
 
   return radians;
 };
+
+export const lerp = (p1: Point, p2: Point, t: number) => {
+  let xComp = p1.x + t * (p2.x - p1.x)
+  let yComp = p1.y + t * (p2.y - p1.y)
+
+  return {x: xComp, y: yComp}
+}
