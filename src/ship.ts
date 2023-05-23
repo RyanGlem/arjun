@@ -14,10 +14,10 @@ export class Ship extends Polygon {
   maxSpeed = 10;
   velocity: Point;
   turnSpeed = 0.4;
-  laser: Laser
+  laser: Laser;
   durability = 100;
   redCol = 55;
-  greenCol = this.durability + 100
+  greenCol = this.durability + 100;
   shipColor = "cyan";
   playerControlled = false;
   centerCircle: RenderCircle;
@@ -30,13 +30,15 @@ export class Ship extends Polygon {
     sides = 3,
     radius = 10,
     shipColor = "cyan",
-    playerControlled = false
+    playerControlled = false,
+    vertices: Point[] = [],
+    angle = 0
   ) {
-    super(ctx, sides, position, radius, shipColor);
+    super(ctx, sides, position, radius, shipColor, vertices, angle);
     this.velocity = { x: 0, y: 0 };
     this.force = { x: 0, y: 0 };
-    this.mass = mass
-    let healthColor = `rgb(${this.redCol}, ${this.greenCol}, 0)`
+    this.mass = mass;
+    let healthColor = `rgb(${this.redCol}, ${this.greenCol}, 0)`;
     this.centerCircle = new RenderCircle(
       ctx,
       this.radius / 5,
@@ -45,22 +47,30 @@ export class Ship extends Polygon {
       healthColor
     );
 
-    this.laser = new Laser (ctx, new Ray())
-    this.playerControlled = playerControlled
+    this.laser = new Laser(ctx, new Ray());
+    this.playerControlled = playerControlled;
 
     if (addLight) {
-      this.shipLight = new DirectLight (ctx, this.position, -45, 45, "cyan", 0.1, 500 )
+      this.shipLight = new DirectLight(
+        ctx,
+        this.position,
+        -45,
+        45,
+        "cyan",
+        0.1,
+        500
+      );
     } else {
-      this.shipLight = null
-    } 
+      this.shipLight = null;
+    }
   }
 
-  checkHit (ray: Ray) {
-    let sides = this.getLines()
+  checkHit(ray: Ray) {
+    let sides = this.getLines();
     for (let side of sides) {
-      let hit = checkLineCollision (ray, side)
+      let hit = checkLineCollision(ray, side);
       if (hit) {
-        return true
+        return true;
       }
     }
   }
@@ -70,57 +80,48 @@ export class Ship extends Polygon {
       let pointerRay = new Ray(this.position, trackPoint);
       let angle = toDeg(pointerRay.getRayAngle());
       this.angle = angle;
-    } 
+    }
   }
 
   move(keys: any) {
     if (keys.w.pressed) {
-      for (let i = 0; i < this.vertices.length; i++) {
-        if (this.speed <= this.maxSpeed) {
-          this.speed += 0.001;
-        }
+      if (this.speed <= this.maxSpeed) {
+        this.speed += 0.1;
       }
     }
 
     if (keys.s.pressed) {
-      for (let i = 0; i < this.vertices.length; i++) {
-        if (this.speed >= -1) {
-          this.speed -= 0.001;
-        }
+      if (this.speed >= -1) {
+        this.speed -= 0.1;
       }
     }
 
     if (keys.a.pressed) {
-      for (let i = 0; i < this.vertices.length; i++) {
-        this.angle -= this.turnSpeed * 0.7;
-      }
+      this.angle -= this.turnSpeed * 0.7;
     }
 
     if (keys.d.pressed) {
-      for (let i = 0; i < this.vertices.length; i++) {
-        this.angle += this.turnSpeed * 0.7;
-      }
+      this.angle += this.turnSpeed * 0.7;
     }
   }
 
-  fire (mouseKey:any, walls : Ray[], ships: Ship [] | Ship) {
-    if(mouseKey.mousedown.pressed) {
-      let posX = Math.cos (toRad(this.angle)) * 10 + this.rotPos[0].x 
-      let posY = Math.sin (toRad(this.angle)) * 10 + this.rotPos[0].y
-      
-      let pos = {x: posX, y: posY}
-      let starterRay = new Ray (this.rotPos[0], pos)
-      starterRay.rayExtension(1500)
-      this.laser.starter.p1 = starterRay.p1
-      this.laser.starter.p2 = starterRay.p2
+  fire(mouseKey: any, walls: Ray[], ships: Ship[] | Ship) {
+    if (mouseKey.mousedown.pressed) {
+      let posX = Math.cos(toRad(this.angle)) * 10 + this.rotPos[0].x;
+      let posY = Math.sin(toRad(this.angle)) * 10 + this.rotPos[0].y;
 
-      this.laser.calculateHits(walls, starterRay)
-      this.laser.damageShip(ships)
+      let pos = { x: posX, y: posY };
+      let starterRay = new Ray(this.rotPos[0], pos);
+      starterRay.rayExtension(1500);
+      this.laser.starter.p1 = starterRay.p1;
+      this.laser.starter.p2 = starterRay.p2;
+
+      this.laser.calculateHits(walls, starterRay);
+      this.laser.damageShip(ships);
     }
   }
 
-  updateSimulation(deltaTime = 0.001, cameraOffset : Point) {
-    
+  updateSimulation(deltaTime = 0.001, cameraOffset: Point) {
     let posX = Math.cos(toRad(this.angle)) * this.speed + this.position.x;
     let posY = Math.sin(toRad(this.angle)) * this.speed + this.position.y;
 
@@ -131,48 +132,48 @@ export class Ship extends Polygon {
     this.velocity.x += xSpeed;
     this.velocity.y += ySpeed;
 
-    let vt = {x: this.velocity.x * deltaTime, y: this.velocity.y * deltaTime}
-    
+    let vt = { x: this.velocity.x * deltaTime, y: this.velocity.y * deltaTime };
+
     for (let i = 0; i < this.vertices.length; i++) {
       this.vertices[i].x += vt.x;
       this.vertices[i].y += vt.y;
-      this.rotPos[i].x += vt.x
-      this.rotPos[i].y += vt.y
+      this.rotPos[i].x += vt.x;
+      this.rotPos[i].y += vt.y;
     }
 
-    let center = this.getCenterPosition()
+    let center = this.getCenterPosition();
 
-    this.centerCircle.update()
+    this.centerCircle.update();
     if (this.playerControlled) {
-      this.centerCircle.updatePosition(this.position.x + cameraOffset.x,  this.position.y + cameraOffset.y)
-    }  else {
-      this.centerCircle.updatePosition(center.x + vt.x, center.y + vt.y)
-    }
-    
-    if (this.durability < 0) {
-      this.strokeColor = "grey"
-      this.speed = 0
-      this.angle = 0
-      this.velocity.x = 0
-      this.velocity.y = 0
+      this.centerCircle.updatePosition(
+        this.position.x + cameraOffset.x,
+        this.position.y + cameraOffset.y
+      );
+    } else {
+      this.centerCircle.updatePosition(center.x + vt.x, center.y + vt.y);
     }
 
+    if (this.durability < 0) {
+      this.strokeColor = "grey";
+      this.speed = 0;
+      this.angle = 0;
+      this.velocity.x = 0;
+      this.velocity.y = 0;
+    }
   }
 
   drawShipLight(walls: Ray[]) {
-    this.shipLight?.updatePosition (
-      {
-        x: this.rotPos[0].x,
-        y: this.rotPos[0].y
-      }
-    )
-    this.shipLight?.rotate(walls, this.angle)  
+    this.shipLight?.updatePosition({
+      x: this.rotPos[0].x,
+      y: this.rotPos[0].y,
+    });
+    this.shipLight?.rotate(walls, this.angle);
   }
 
   translateCamera(camera: Rectangle) {
     camera.updatePosition({
-      x: -this.position.x + this.ctx.canvas.width  / 2 + this.velocity.x * 0.001,
-      y: -this.position.y + this.ctx.canvas.height / 2 + this.velocity.y * 0.001
+      x: -this.position.x + this.ctx.canvas.width / 2 + this.velocity.x * 0.001,
+      y: -this.position.y + this.ctx.canvas.height / 2 + this.velocity.y * 0.001,
     });
   }
 }

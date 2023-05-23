@@ -1,5 +1,8 @@
 import { Room, Client } from "colyseus";
-import { State, Player, InputKeys } from "./hubState";
+import { State, Player, InputKeys, Vertex } from "./hubState";
+import { getAngle, rotatePoints, toRad } from "../linear_operations";
+import { Ray, Point } from "../ray";
+import { calculateVelocity, getCenterPosition, serverAngle} from "./roomLogic";
 
 export default class HubRoom extends Room<State> {
   fixedTimeStep = 1000 / 60;
@@ -11,36 +14,62 @@ export default class HubRoom extends Room<State> {
     this.onMessage("move", (client, input) => {
       let player = this.state.players.get(client.sessionId);
 
-      if (player) player.inputQueue.push(input);
+      if (player) {
+        player.inputQueue.push(input)
+        player.position = getCenterPosition(player.ship.vertices)
+      };
     });
 
+    this.onMessage("mousePosition", (client, position) => {
+      let player = this.state.players.get(client.sessionId)
+
+      if (player) {
+        player.angle = serverAngle (player.position, position)
+      } 
+    })
+
     this.setSimulationInterval((deltaTime) => {
-      this.update(deltaTime)
+      this.update(deltaTime);
     });
   }
 
   update(deltaTime: number) {
-    const velocity = 1;
-
+    let accel = 0.1
+    
     this.state.players.forEach((player) => {
       let input: InputKeys;
+      let velocity = calculateVelocity(player.ship.speed, player.angle, player.ship.velocity, player.position, 1)
+
+      player.ship.vertices.forEach((vertex) => {
+        vertex.x += velocity.x 
+        vertex.y += velocity.y
+      })
 
       // dequeue player inputs
       while ((input = player.inputQueue.shift() as InputKeys)) {
+
         if (input.w.pressed) {
-          player.y -= velocity;
+          if (player.ship.speed <= player.ship.maxSpeed) {
+            player.ship.speed += accel
+          }
         }
 
         if (input.s.pressed) {
-          player.y += velocity;
+          if (player.ship.speed >= -1) {
+            player.ship.speed -= accel
+          }
         }
 
         if (input.a.pressed) {
-          player.x -= velocity;
+          player.ship.vertices.forEach((vertex) => {
+            vertex.x -= accel
+          })
         }
 
         if (input.d.pressed) {
-          player.x += velocity;
+          player.ship.vertices.forEach((vertex) => {
+            vertex.x += accel
+          })
         }
       }
     });

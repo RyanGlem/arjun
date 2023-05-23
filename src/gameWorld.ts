@@ -1,7 +1,7 @@
 import { Client, Room } from "colyseus.js";
-import { RenderCircle } from "./circle";
-import { Ship } from "./ship"
-import { lerp } from "./linear_operations";
+import { Point } from "./ray";
+import { Ship } from "./ship";
+import { calculateVelocity, lerp, rotatePoints } from "./linear_operations";
 import type { State } from "../src/rooms/hubState";
 
 const client = new Client("ws://localhost/80");
@@ -9,12 +9,21 @@ const client = new Client("ws://localhost/80");
 const canvas: HTMLCanvasElement = document.getElementById(
   "container"
 ) as HTMLCanvasElement;
+
 const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
-
-let serverPositions : {[sessionId: string] : {x: number, y: number}} = {}
-
-let players = new Map<string, RenderCircle>();
+let mousePointer: Point = { x: 0, y: 0 };
+let players = new Map<string, Ship>();
 let room: Room<State>;
+let serverEntity: {
+  [sessionId: string]: {
+    x: number;
+    y: number;
+    position: Point
+    vertices: Point[];
+    speed: number;
+    angle: number;
+  };
+} = {};
 
 const create = async () => {
   await join();
@@ -22,12 +31,30 @@ const create = async () => {
   room.state.players.onAdd((player, sessionId) => {
     players.set(
       sessionId,
-      new RenderCircle(ctx, 15, player.x, player.y, "cyan")
+      new Ship(
+        ctx,
+        false,
+        player.position,
+        4,
+        3,
+        10,
+        "cyan",
+        true,
+        player.ship.vertices,
+        player.ship.angle
+      )
     );
 
     if (sessionId !== room.sessionId) {
       player.onChange(() => {
-        serverPositions[sessionId] = {x:player.x, y:player.y}
+        serverEntity[sessionId] = {
+          x: player.x,
+          y: player.y,
+          position: player.position,
+          vertices: player.ship.vertices,
+          speed: player.ship.speed,
+          angle: player.angle,
+        };
       });
     }
   });
@@ -94,34 +121,12 @@ const update = (timestamp: DOMHighResTimeStamp) => {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   if (room) {
-    let clientPlayer = players.get(room.sessionId) as RenderCircle;
-
+    let clientPlayer = players.get(room.sessionId) as Ship;
     room.send("move", keys);
-    const velocity = 1;
+    room.send("mousePosition", mousePointer)
     if (clientPlayer) {
-      if (keys.w.pressed)
-        clientPlayer.updatePosition(
-          clientPlayer.circle.x,
-          (clientPlayer.circle.y -= velocity)
-        );
-
-      if (keys.s.pressed)
-        clientPlayer.updatePosition(
-          clientPlayer.circle.x,
-          (clientPlayer.circle.y += velocity)
-        );
-
-      if (keys.a.pressed)
-        clientPlayer.updatePosition(
-          (clientPlayer.circle.x -= velocity),
-          clientPlayer.circle.y
-        );
-
-      if (keys.d.pressed)
-        clientPlayer.updatePosition(
-          (clientPlayer.circle.x += velocity),
-          clientPlayer.circle.y
-        );
+      clientPlayer.updateSimulation(deltaTime, { x: 0, y: 0 });
+      clientPlayer.lookAt(mousePointer);
     }
 
     for (let sessionId of players.keys()) {
@@ -129,13 +134,20 @@ const update = (timestamp: DOMHighResTimeStamp) => {
         continue;
       }
 
-      const player = players.get(sessionId) as RenderCircle;
-      const serverPlayer = room.state.players.get(sessionId);
+      const player = players.get(sessionId) as Ship;
+      const serverPlayer = serverEntity[sessionId];
+      const rotPos = rotatePoints(serverPlayer.vertices, serverPlayer.angle, serverPlayer.position)
+      let lerpArray = [];
+      for (let i = 0; i < player.vertices.length; i++) {
+        let playerPos = player.vertices[i];
+        let serverPos = rotPos[i];
+        if (serverPos) {
+          lerpArray.push(lerp(playerPos, serverPos, 0.2));
+        }
+      }
 
-      const lerpPos = lerp (player.circle.center, serverPositions[sessionId], 0.2)
-
-      if (serverPlayer) {
-        player.updatePosition(lerpPos.x, lerpPos.y)
+      if (lerpArray.length !== 0) {
+        player.vertices = lerpArray;
       }
     }
   }
@@ -144,6 +156,12 @@ const update = (timestamp: DOMHighResTimeStamp) => {
   draw();
   requestAnimationFrame(update);
 };
+
+canvas.addEventListener("mousemove", (event: MouseEvent) => {
+  let mouseX = event.offsetX;
+  let mouseY = event.offsetY;
+  mousePointer = { x: mouseX, y: mouseY };
+});
 
 window.addEventListener("keydown", (event: KeyboardEvent) => {
   switch (event.key) {

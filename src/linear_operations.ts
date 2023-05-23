@@ -153,3 +153,36 @@ export const lerp = (p1: Point, p2: Point, t: number) => {
 
   return {x: xComp, y: yComp}
 }
+
+export const rotatePoints = (vertices: Point [], angle: number, origin: Point) => {
+  let rotPos : Point[] = [];
+
+    for (let point of vertices) {
+      if (point) {
+        let pos = {
+          x: point.x - origin.x,
+          y: point.y - origin.y,
+        };
+        let xPrime =
+          pos.x * Math.cos(toRad(angle)) - pos.y * Math.sin(toRad(angle));
+        let yPrime =
+          pos.y * Math.cos(toRad(angle)) + pos.x * Math.sin(toRad(angle));
+        rotPos.push({x:xPrime + origin.x, y:yPrime + origin.y})
+      }
+    }
+    return rotPos;
+}
+
+export const calculateVelocity = (speed: number, angle: number, position: Point, mass: number) => {
+  let posX = Math.cos(toRad(angle)) * speed + position.x;
+  let posY = Math.sin(toRad(angle)) * speed + position.y;
+
+  let forceVector = new Ray(position, { x: posX, y: posY });
+
+  let xSpeed = (forceVector.p2.x - forceVector.p1.x) / mass;
+  let ySpeed = (forceVector.p2.y - forceVector.p1.y) / mass;
+
+  let vt = { x: xSpeed, y: ySpeed }
+
+  return vt
+}

@@ -19,14 +19,23 @@ export class Polygon {
     sides = 3,
     position: Point,
     radius = 10,
-    strokeColor = "cyan",  
+    strokeColor = "cyan",
+    vertices : Point[] = [],
+    angle = 0, 
   ) {
     this.ctx = ctx;
     this.sides = sides;
+    this.angle = angle
     this.radius = radius;
     this.position = position;
     this.strokeColor = strokeColor;
-    this.createPoints();
+    
+    if (vertices.length === 0) {
+      this.createPoints()
+    } else {
+      this.vertices = vertices
+    }
+
     this.position = this.getCenterPosition();
     this.update();
   }
@@ -49,7 +58,7 @@ export class Polygon {
       let radians = toRad(angle);
 
       let posX = Math.cos(radians) * this.radius + (this.position.x);
-      let posY = Math.sin(radians) * this.radius + (this.position.y) ;
+      let posY = Math.sin(radians) * this.radius + (this.position.y);
 
       this.vertices.push({ x: posX, y: posY });
     }
