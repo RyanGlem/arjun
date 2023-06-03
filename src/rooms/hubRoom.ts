@@ -5,7 +5,6 @@ import { Ray, Point } from "../ray";
 import { calculateVelocity, getCenterPosition, serverAngle} from "./roomLogic";
 
 export default class HubRoom extends Room<State> {
-  fixedTimeStep = 1000 / 60;
 
   onCreate() {
     this.setState(new State());
@@ -38,8 +37,7 @@ export default class HubRoom extends Room<State> {
     
     this.state.players.forEach((player) => {
       let input: InputKeys;
-      let velocity = calculateVelocity(player.ship.speed, player.angle, player.ship.velocity, player.position, 1)
-
+      let velocity = calculateVelocity(player.ship.speed, player.angle, player.ship.velocity, player.ship.vertices, deltaTime / 1000, 1)
       player.ship.vertices.forEach((vertex) => {
         vertex.x += velocity.x 
         vertex.y += velocity.y
@@ -47,7 +45,6 @@ export default class HubRoom extends Room<State> {
 
       // dequeue player inputs
       while ((input = player.inputQueue.shift() as InputKeys)) {
-
         if (input.w.pressed) {
           if (player.ship.speed <= player.ship.maxSpeed) {
             player.ship.speed += accel

@@ -1,5 +1,6 @@
 import { Point, Ray } from "./ray";
 import { Circle } from "./circle"
+import { getCenterPosition } from "./rooms/roomLogic";
 
 export const distance = (p1: Point, p2: Point) => {
   return Math.floor(Math.sqrt((p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2));
@@ -173,7 +174,14 @@ export const rotatePoints = (vertices: Point [], angle: number, origin: Point) =
     return rotPos;
 }
 
-export const calculateVelocity = (speed: number, angle: number, position: Point, mass: number) => {
+export const calculateVelocity = (
+  speed: number,
+  angle: number,
+  velocity: Point,
+  vertices: Point[],
+  mass: number
+) => {
+  let position = getCenterPosition(vertices)
   let posX = Math.cos(toRad(angle)) * speed + position.x;
   let posY = Math.sin(toRad(angle)) * speed + position.y;
 
@@ -182,7 +190,10 @@ export const calculateVelocity = (speed: number, angle: number, position: Point,
   let xSpeed = (forceVector.p2.x - forceVector.p1.x) / mass;
   let ySpeed = (forceVector.p2.y - forceVector.p1.y) / mass;
 
-  let vt = { x: xSpeed, y: ySpeed }
+  velocity.x += xSpeed;
+  velocity.y += ySpeed;
 
-  return vt
-}
+  let vt = { x: velocity.x * 0.001, y: velocity.y * 0.001 };
+
+  return vt;
+};

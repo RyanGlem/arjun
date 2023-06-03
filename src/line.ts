@@ -8,6 +8,7 @@ export const drawLine = (ctx:CanvasRenderingContext2D, strokeColor = "red", p1 :
     ctx.closePath()
     ctx.stroke();
 }
+
 export class Line extends Ray {
   ctx: CanvasRenderingContext2D;
   currentColor: string;

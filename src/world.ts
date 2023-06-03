@@ -2,11 +2,13 @@ import { Ship } from "./ship";
 import { Ray, Point } from "./ray";
 import { Polygon } from "./polygon";
 import { Rectangle } from "./camera";
-import { RenderCircle } from "./circle";
+import { Particle } from "./particle"
+import { Circle, RenderCircle } from "./circle";
 import { Laser } from "./projectiles/laser";
 import { Shell } from "./projectiles/shell";
 import { PointLight } from "./lights/point_light";
 import { DirectLight } from "./lights/directional_light";
+import { drawCirlce } from "./circle";
 
 const canvas: HTMLCanvasElement = document.getElementById(
   "container"
@@ -25,6 +27,7 @@ let getRandY = () => {
   return Math.floor(Math.random() * canvas.height);
 };
 
+let p = new Particle()
 let polygons = [
   new Ship(ctx, undefined, { x: 120, y: 330 }, 2, 3, 25, "red"),
   new Ship(ctx, undefined, { x: 121, y: 330 }, 5, 3, 12, "magenta"),
@@ -187,29 +190,89 @@ const displayFPS = () => {
 //let ship = polygons[0] as Ship;
 
 let start: number;
-let deltaTime: number = 0.001;
-
+let deltaTime: number = 1/100;
+let accumulator =  0.0
+let currentTime: number = performance.now()
 let spawnedBullets : Shell [] = []
+
+// Technically these aren't points but lines
+// Also this is suppose to take in the "state" of the entire physics simulation and integrate all parts
+let previousState: Particle = p
+
+let currentState: Particle = p
+const computeInertia = (circle: Circle) => {
+  circle.moi = (1/4 * circle.mass * circle.radius ** 2)
+}
+const computeForce = (particle: Particle) : Point =>  {
+  let accelConstant = 10
+  let gravity = 9.81
+  return {x: particle.mass * accelConstant, y: particle.mass * gravity}
+}
+
+const integrate = (particle: Particle, deltaTime: number) => {
+  let force = computeForce(particle)
+  let acceleration : Point = {x: force.x / particle.mass, y: force.y / particle.mass}
+  particle.velocity.x += acceleration.x * deltaTime
+  particle.velocity.y += acceleration.y * deltaTime
+  particle.position.x += particle.velocity.x * deltaTime
+  particle.position.y += particle.velocity.y * deltaTime
+}
 
 // The update method is called when the browswer is ready for a repaint to redraw the screen
 const update = (timestamp: DOMHighResTimeStamp) => {
-  if (!start) start = timestamp;
-  const elapsed = timestamp - start;
+  if (!start) start = timestamp
+
+  const elapsed = timestamp - start
+
+  let newTime = timestamp
+  let frameTime = (newTime - currentTime) / 1000; // <- this has to be time in seconds
+  
+  if (frameTime && frameTime > 0.25) {
+    frameTime = 0.25
+  }
+
+  currentTime = newTime;
+
+  accumulator += frameTime
+
+  while (accumulator >= deltaTime) {
+    previousState = currentState
+    integrate (currentState, deltaTime)
+    accumulator -= deltaTime
+  }
+
+  const alpha = accumulator / deltaTime
+
+  let particleSate = new Particle()
+  particleSate.position = {
+    x: currentState.position.x * alpha + previousState.position.x * (1.0 - alpha),
+    y: currentState.position.y * alpha + previousState.position.y * (1.0 - alpha)
+  }
+
+  particleSate.velocity = {
+    x: currentState.velocity.x * alpha + previousState.velocity.x * (1.0 - alpha),
+    y: currentState.velocity.y * alpha + previousState.velocity.y * (1.0 - alpha)
+  }
+
   // This is the time it takes to call every loop which is about 6 MS
   //elapsedSinceLastLoop = timestamp - lastTime // 6 MS between each frame
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
+
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawCirlce(ctx, particleSate.position.x, particleSate.position.y, 10, "red", "black")
+
   let mouseCamOffset = {
     x: mousePointer.x - camera.topLeftPos.x,
     y: mousePointer.y - camera.topLeftPos.y,
   };
 
   displayFPS();
+  ship.updateSimulation(deltaTime, camera.topLeftPos)
   ship.move(keys);
   ship.lookAt(mouseCamOffset);
-  ship.updateSimulation(deltaTime, camera.topLeftPos);
-  ship.translateCamera(camera);
+  ;
+  //ship.translateCamera(camera);
   ctx.translate(camera.topLeftPos.x, camera.topLeftPos.y);
 
   laser.calculateHits(getWalls(polygons));

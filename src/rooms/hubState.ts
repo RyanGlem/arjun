@@ -54,7 +54,7 @@ export class Ship extends Schema {
   @type("number") y: number | undefined;
   @type("number") angle = 0
   @type("number") speed = 0;
-  @type("number") maxSpeed = 10
+  @type("number") maxSpeed = 20
   @type ([Vertex]) vertices: Vertex[] 
   @type (Vertex) velocity: Vertex = new Vertex(0, 0)
 

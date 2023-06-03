@@ -14,6 +14,8 @@ export class Circle {
   x: number;
   y: number;
   radius: number;
+  mass = 1
+  moi: number = 1
   center: Point = { x: 0, y: 0 };
   constructor(radius: number = 1, x: number = 0, y: number = 0) {
     this.x = x;

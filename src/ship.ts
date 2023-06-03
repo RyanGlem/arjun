@@ -8,7 +8,7 @@ import { checkLineCollision } from "./linear_operations";
 import { Laser } from "./projectiles/laser";
 
 export class Ship extends Polygon {
-  mass = 1;
+  mass = 2;
   speed = 0.0;
   force: Point;
   maxSpeed = 10;
@@ -84,15 +84,16 @@ export class Ship extends Polygon {
   }
 
   move(keys: any) {
+    let accel = 0.1
     if (keys.w.pressed) {
       if (this.speed <= this.maxSpeed) {
-        this.speed += 0.1;
+        this.speed += accel;
       }
     }
 
     if (keys.s.pressed) {
       if (this.speed >= -1) {
-        this.speed -= 0.1;
+        this.speed -= accel;
       }
     }
 
@@ -121,17 +122,20 @@ export class Ship extends Polygon {
     }
   }
 
-  updateSimulation(deltaTime = 0.001, cameraOffset: Point) {
+  updateSimulation(deltaTime: number, cameraOffset: Point) {
     let posX = Math.cos(toRad(this.angle)) * this.speed + this.position.x;
     let posY = Math.sin(toRad(this.angle)) * this.speed + this.position.y;
 
     let forceVector = new Ray(this.position, { x: posX, y: posY });
 
-    let xSpeed = (forceVector.p2.x - forceVector.p1.x) / this.mass;
-    let ySpeed = (forceVector.p2.y - forceVector.p1.y) / this.mass;
-    this.velocity.x += xSpeed;
-    this.velocity.y += ySpeed;
+    // accel = F/m
+    let xAccel = (forceVector.p2.x - forceVector.p1.x) / this.mass;
+    let yAccel = (forceVector.p2.y - forceVector.p1.y) / this.mass;
+    this.velocity.x += xAccel * deltaTime;
+    this.velocity.y += yAccel * deltaTime;
 
+
+    //position = velocity * dt
     let vt = { x: this.velocity.x * deltaTime, y: this.velocity.y * deltaTime };
 
     for (let i = 0; i < this.vertices.length; i++) {
@@ -170,10 +174,11 @@ export class Ship extends Polygon {
     this.shipLight?.rotate(walls, this.angle);
   }
 
-  translateCamera(camera: Rectangle) {
+  translateCamera(deltaTime: number, camera: Rectangle) {
+
     camera.updatePosition({
-      x: -this.position.x + this.ctx.canvas.width / 2 + this.velocity.x * 0.001,
-      y: -this.position.y + this.ctx.canvas.height / 2 + this.velocity.y * 0.001,
+      x: -this.position.x + this.ctx.canvas.width / 2,
+      y: -this.position.y + this.ctx.canvas.height / 2,
     });
   }
 }

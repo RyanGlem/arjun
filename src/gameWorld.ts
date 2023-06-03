@@ -1,8 +1,14 @@
 import { Client, Room } from "colyseus.js";
 import { Point } from "./ray";
 import { Ship } from "./ship";
-import { calculateVelocity, lerp, rotatePoints } from "./linear_operations";
+import {
+  calculateVelocity,
+  lerp,
+  rotatePoints,
+  toDeg,
+} from "./linear_operations";
 import type { State } from "../src/rooms/hubState";
+import { Rectangle } from "./camera";
 
 const client = new Client("ws://localhost/80");
 
@@ -11,6 +17,7 @@ const canvas: HTMLCanvasElement = document.getElementById(
 ) as HTMLCanvasElement;
 
 const ctx = canvas.getContext("2d") as CanvasRenderingContext2D;
+let camera = new Rectangle({ x: 0, y: 0 }, canvas.width, canvas.height);
 let mousePointer: Point = { x: 0, y: 0 };
 let players = new Map<string, Ship>();
 let room: Room<State>;
@@ -18,10 +25,11 @@ let serverEntity: {
   [sessionId: string]: {
     x: number;
     y: number;
-    position: Point
+    position: Point;
     vertices: Point[];
     speed: number;
     angle: number;
+    velocity: Point;
   };
 } = {};
 
@@ -35,16 +43,15 @@ const create = async () => {
         ctx,
         false,
         player.position,
-        4,
+        1,
         3,
         10,
         "cyan",
         true,
         player.ship.vertices,
-        player.ship.angle
+        player.angle,
       )
     );
-
     if (sessionId !== room.sessionId) {
       player.onChange(() => {
         serverEntity[sessionId] = {
@@ -53,10 +60,11 @@ const create = async () => {
           position: player.position,
           vertices: player.ship.vertices,
           speed: player.ship.speed,
+          velocity: player.ship.velocity,
           angle: player.angle,
         };
       });
-    }
+    } 
   });
 };
 
@@ -90,7 +98,7 @@ canvas.width = window.innerWidth;
 canvas.height = window.innerHeight;
 
 const draw = () => {
-  if (players.size != 0) {
+  if (players.size !== 0) {
     for (let player of players.values()) {
       player.update();
     }
@@ -108,13 +116,21 @@ const displayFPS = () => {
   ctx.fillStyle = "cyan";
   ctx.font = "normal 28px Arial";
   ctx.fillText(frames, canvas.width - 140, 40);
+
+  return thisFrameTime;
 };
 
 let start: number;
-let deltaTime: number = 0.001;
-
+let oldTimeStamp: number;
+let deltaTime: number;
 const update = (timestamp: DOMHighResTimeStamp) => {
   if (!start) start = timestamp;
+
+  let secondsPassed = (timestamp - oldTimeStamp) / 1000;
+  oldTimeStamp = timestamp;
+  if (secondsPassed) deltaTime = secondsPassed;
+  if (deltaTime) deltaTime = Number((deltaTime).toFixed(3))
+
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
 
@@ -122,21 +138,36 @@ const update = (timestamp: DOMHighResTimeStamp) => {
 
   if (room) {
     let clientPlayer = players.get(room.sessionId) as Ship;
+
+    let mouseCamOffset = {
+      x: mousePointer.x - camera.topLeftPos.x,
+      y: mousePointer.y - camera.topLeftPos.y,
+    };
+
     room.send("move", keys);
-    room.send("mousePosition", mousePointer)
+    room.send("mousePosition", mouseCamOffset);
+
     if (clientPlayer) {
-      clientPlayer.updateSimulation(deltaTime, { x: 0, y: 0 });
-      clientPlayer.lookAt(mousePointer);
+
+      clientPlayer.move(keys);
+      clientPlayer.updateSimulation(deltaTime, camera.topLeftPos);
+      clientPlayer.lookAt(mouseCamOffset);
+      clientPlayer.translateCamera(deltaTime, camera);
+      ctx.translate(camera.topLeftPos.x, camera.topLeftPos.y)
     }
 
     for (let sessionId of players.keys()) {
       if (sessionId === room.sessionId) {
-        continue;
+        break;
       }
 
       const player = players.get(sessionId) as Ship;
       const serverPlayer = serverEntity[sessionId];
-      const rotPos = rotatePoints(serverPlayer.vertices, serverPlayer.angle, serverPlayer.position)
+      const rotPos = rotatePoints(
+        serverPlayer.vertices,
+        serverPlayer.angle,
+        serverPlayer.position
+      );
       let lerpArray = [];
       for (let i = 0; i < player.vertices.length; i++) {
         let playerPos = player.vertices[i];

@@ -1,6 +1,7 @@
 import { checkLineCircleCollision, checkLineCollision, toRad} from "./linear_operations";
 import { Circle } from "./circle";
 import { Ray, Point } from "./ray";
+import { Rectangle } from "./camera";
 
 export class Polygon {
   sides = 3;
